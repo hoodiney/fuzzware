@@ -67,15 +67,28 @@ else
     echo "[+] Running with -it"
 fi
 
+# if [[ -z "$IMAGE" ]]; then
+#     docker run \
+#         "$docker_options" \
+#         --mount type=bind,source="$(realpath $targets_dir)",target=/home/user/fuzzware/targets \
+#         "fuzzware:latest" $cmd
+# else
+#     echo "Runing docker with image $IMAGE"
+#     docker run \
+#         "$docker_options" \
+#         --mount type=bind,source="$(realpath $targets_dir)",target=/home/user/fuzzware/targets \
+#         "fuzzware:$IMAGE" $cmd
+# fi
+
 if [[ -z "$IMAGE" ]]; then
     docker run \
-        "$docker_options" \
-        --mount type=bind,source="$(realpath $targets_dir)",target=/home/user/fuzzware/targets \
+        -it \
+        -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint ./docker_dbg_entry.sh\
         "fuzzware:latest" $cmd
 else
     echo "Runing docker with image $IMAGE"
     docker run \
-        "$docker_options" \
-        --mount type=bind,source="$(realpath $targets_dir)",target=/home/user/fuzzware/targets \
+        -it \
+        -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint ./docker_dbg_entry.sh\
         "fuzzware:$IMAGE" $cmd
 fi

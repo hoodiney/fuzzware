@@ -1,0 +1,20 @@
+arch: "armv4t"
+memory_map:
+  text:
+    base_addr: 0x100000
+    file: Tegra_X1_BootROM_Nintendo_T210.bin.bak
+    permissions: r-x
+    size: 0x18000
+  IRAM:
+    base_addr: 0x40000000
+    permissions: rwx
+    size: 0x40000
+  mmio_id_1:
+    base_addr: 0x60005000
+    permissions: rw-
+    size: 0x1000a000
+  rom:
+    base_addr: 0x7000F800
+    permissions: r--
+    size: 0xcff2000
+  

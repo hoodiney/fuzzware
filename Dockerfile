@@ -4,7 +4,8 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y python3 python3-pip automake tmux redis wget autoconf sudo htop cmake clang vim unzip git binutils-arm-none-eabi && \
     pip3 install virtualenv virtualenvwrapper cython setuptools
-
+RUN apt-get install -y lld-12 llvm-12 llvm-12-dev clang-12 gcc-11-plugin-dev
+ENV LLVM_CONFIG=llvm-config-12
 ENV FUZZWARE=/home/user/fuzzware
 ENV WORKON_HOME=/home/user/.virtualenvs
 RUN useradd -l -u 1000 -d /home/user user && \
