@@ -9,12 +9,42 @@ memory_map:
     base_addr: 0x40000000
     permissions: rwx
     size: 0x40000
+  # The "always MMIO" segments
   mmio_id_1:
-    base_addr: 0x60005000
+    base_addr: 0x7C000000
     permissions: rw-
-    size: 0x1000a000
+    size: 0x1ffffff
+  mmio_id_2:
+    base_addr: 0x70000000
+    permissions: rw-
+    size: 0x3ffffff
+  mmio_id_3:
+    base_addr: 0x68000000
+    permissions: rw-
+    size: 0xffffff
+  mmio_id_4:
+    base_addr: 0x60000000
+    permissions: rw-
+    size: 0xffffff
+  mmio_id_5:
+    base_addr: 0x54000000
+    permissions: rw-
+    size: 0xffffff
+  mmio_id_6:
+    base_addr: 0x50000000
+    permissions: rw-
+    size: 0xffffff
+  # The "selectable" segments, but are MMIO in all cases
+  mmio_id_7:
+    base_addr: 0x78000000
+    permissions: rw-
+    size: 0xffffff
+  mmio_id_8:
+    base_addr: 0x57000000
+    permissions: rw-
+    size: 0x8ffffff
   rom:
     base_addr: 0x7000F800
-    permissions: r--
+    permissions: rw-
     size: 0xcff2000
   
