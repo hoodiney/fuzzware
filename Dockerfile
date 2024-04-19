@@ -64,6 +64,7 @@ RUN pip3 install -e $FUZZWARE/emulator/harness && \
 
 # Finally copy the modeling venv
 COPY --chown=user --from=fuzzware-modeling $WORKON_HOME/ $WORKON_HOME/
+COPY bashrc_file /home/user/.bashrc
 
 USER user:user
 WORKDIR $FUZZWARE/targets
