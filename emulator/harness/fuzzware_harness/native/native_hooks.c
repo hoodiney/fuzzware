@@ -1029,6 +1029,28 @@ static void restore_snapshot(uc_engine *uc) {
     custom_exit_reason = UC_ERR_OK;
 }
 
+uc_err emulate_debug(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
+    fflush(stdout);
+    input_path = p_input_path;
+    puts("Running without a fork server");
+    duplicate_exit = false;
+
+    // Not running under fork server
+    int sig = run_single(uc);
+
+    if(do_print_exit_info) {
+        if(sig) {
+            // Crash occurred
+            printf("Emulation crashed with signal %d\n", sig);
+        } else {
+            // Non-crashing exit (includes different timeouts)
+            uint32_t pc;
+            uc_reg_read(uc, UC_ARM_REG_PC, &pc);
+            printf("Exited without crash at 0x%08x - If no other reason, we ran into one of the limits\n", pc);
+        }
+    }
+}
+
 uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
     uint64_t pc = 0;
     fflush(stdout);

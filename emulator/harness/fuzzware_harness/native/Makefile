@@ -6,10 +6,15 @@ INC=-I$(OWN_DIR)/../../../unicorn/$(UC_DIRNAME)/include
 BIN_EXT = .so
 
 CC = clang
+# ifeq ($(DEBUG_TIMER),1)
+# 	CFLAGS += -fpic -Wall -Werror $(INC) -g -O3 -DDEBUG_TIMER
+# else
+# 	CFLAGS += -fpic -Wall -Werror $(INC) -g -O3
+# endif
 ifeq ($(DEBUG_TIMER),1)
-	CFLAGS += -fpic -Wall -Werror $(INC) -g -O3 -DDEBUG_TIMER
+	CFLAGS += -fpic -Wall $(INC) -g -O3 -DDEBUG_TIMER
 else
-	CFLAGS += -fpic -Wall -Werror $(INC) -g -O3
+	CFLAGS += -fpic -Wall $(INC) -g -O3
 endif
 LDFLAGS += -shared -L$(LIBDIR) -lunicorn
 

@@ -400,7 +400,7 @@ def main():
     # Add the hook for debugging, tracing every pc executed 
     def hook_code(uc, address, size, user_data):
         cpsr = uc.reg_read(UC_ARM_REG_CPSR)
-        print(f"Executing at 0x{address:X}, instruction size: {size}, cpsr: 0x{cpsr:X}")
+        print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}")
     # if args.debug:
     # uc.hook_add(UC_HOOK_CODE, hook_code)
 
@@ -415,7 +415,10 @@ def main():
     # gc.set_threshold(0, 0, 0)
 
     # We do everything in native code from here to avoid any python overhead after configuration is done
-    native.emulate(uc, args.input_file, args.prefix_input_path)
+    if args.gdb_port:
+        native.emulate_debug(uc, args.input_file, args.prefix_input_path)
+    else:
+        native.emulate(uc, args.input_file, args.prefix_input_path)
 
 
 if __name__ == "__main__":

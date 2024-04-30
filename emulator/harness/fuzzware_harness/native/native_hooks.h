@@ -97,5 +97,6 @@ uc_err set_ignored_mmio_addresses(uint64_t *addresses, uint32_t *pcs, int num_ad
 uc_err remove_function_handler_hook_address(uc_engine *uc, uint64_t address);
 uc_err register_cond_py_handler_hook(uc_engine *uc, uc_cb_hookcode_t py_callback, uint64_t *addrs, int num_addrs, void *user_data);
 
+uc_err emulate_debug(uc_engine *uc, char *p_input_path, char *prefix_input_path);
 uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path);
 #endif

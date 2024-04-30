@@ -112,7 +112,6 @@ class GDBServer(Thread):
             'c' : self.cont,
             'C' : self.cont, #cond with signal, we don't care
             's' : self.step,
-            'S' : self.step,
             'S' : self.step_signal,
             'Z' : self.insert_breakpoint,
             'z' : self.remove_breakpoint,

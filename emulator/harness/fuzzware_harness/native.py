@@ -69,6 +69,15 @@ def load_fuzz(file_path):
     assert native_lib.load_fuzz(file_path.encode())==0
     sys.stdout.flush()
 
+def emulate_debug(uc, fuzz_file_path, prefix_input_file_path=None):
+    if prefix_input_file_path:
+        prefix_input_file_path = prefix_input_file_path.encode()
+    else:
+        # In case input path is an empty string, set it to None explicitly
+        prefix_input_file_path = None
+
+    native_lib.emulate_debug(uc._uch, fuzz_file_path.encode(), prefix_input_file_path)
+
 def emulate(uc, fuzz_file_path, prefix_input_file_path=None):
     # uc_err emulate(uc_engine *uc, char *input_path, uint64_t instr_limit, char *prefix_input_path);
 
@@ -405,6 +414,10 @@ def init(uc, mmio_regions, exit_at_bbls, exit_at_hit_num, do_print_exit_info, fu
     # Starting emulation
     # uc_err emulate(uc_engine *uc, char *input_path, char *prefix_input_path);
     _setup_prototype(native_lib, "emulate", ctypes.c_int, uc_engine, ctypes.c_char_p, ctypes.c_char_p)
+
+    # Starting emulation with gdb debugger
+    # uc_err emulate_debug(uc_engine *uc, char *input_path, char *prefix_input_path);
+    _setup_prototype(native_lib, "emulate_debug", ctypes.c_int, uc_engine, ctypes.c_char_p, ctypes.c_char_p)
 
     mmio_region_starts, mmio_region_ends = zip(*mmio_regions)
     mmio_region_starts_arr = (ctypes.c_int64 * len(mmio_region_starts))(*mmio_region_starts)
