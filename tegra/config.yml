@@ -133,158 +133,46 @@ memory_map:
     base_addr: 0x70410000
     permissions: rw-
     size: 0x1000
+  TZRAM:
+    base_addr: 0x7c010000
+    permissions: rwx
+    size: 0x10000
+  ipatch:
+    base_addr: 0x6001dc00
+    permissions: rw-
+    size: 0x400
+  exc_vectors:
+    base_addr: 0x6000F000
+    permissions: rw-
+    size: 0x1000
   # USB
   mmio_id_29:
     base_addr: 0x7D000000
     permissions: rw-
     size: 0x2000
-  # # TMR
-  # mmio_id_1:
-  #   base_addr: 0x60005000
-  #   permissions: rw-
-  #   size: 0x400
-  # # CLK_RST, FLOW_CTRL 
-  # mmio_id_2:
-  #   base_addr: 0x60006000
-  #   permissions: rw-
-  #   size: 0x2000
-  # # SYS_REGS
-  # mmio_id_3:
-  #   base_addr: 0x6000C000
-  #   permissions: rw-
-  #   size: 0x300
-  # # GPIO6
-  # mmio_id_4:
-  #   base_addr: 0x6000D500
-  #   permissions: rw-
-  #   size: 0x100
-  # # PP
-  # mmio_id_5:
-  #   base_addr: 0x70000000
-  #   permissions: rw-
-  #   size: 0x400
-  # # GP
-  # mmio_id_6:
-  #   base_addr: 0x70000800
-  #   permissions: rw-
-  #   size: 0x400
-  # # PINMUX_AUX
-  # mmio_id_7:
-  #   base_addr: 0x70003000
-  #   permissions: rw-
-  #   size: 0x1000
-  # # UARTA, UARTB
-  # mmio_id_8:
-  #   base_addr: 0x70006000
-  #   permissions: rw-
-  #   size: 0x80
-  # # UARTC, UARTD, UARTE
-  # mmio_id_9:
-  #   base_addr: 0x70006200
-  #   permissions: rw-
-  #   size: 0x300
-  # # I2C
-  # mmio_id_10:
-  #   base_addr: 0x7000C000
-  #   permissions: rw-
-  #   size: 0x100
-  # #  I2C2, I2C3
-  # mmio_id_11:
-  #   base_addr: 0x7000C400
-  #   permissions: rw-
-  #   size: 0x200
-  # #  I2C4
-  # mmio_id_12:
-  #   base_addr: 0x7000C700
-  #   permissions: rw-
-  #   size: 0x100
-  # #  I2C5, I2C6
-  # mmio_id_13:
-  #   base_addr: 0x7000D000
-  #   permissions: rw-
-  #   size: 0x200
-  # # PMC
-  # mmio_id_14:
-  #   base_addr: 0x7000E400
-  #   permissions: rw-
-  #   size: 0xc00
-  # # SE
-  # mmio_id_15:
-  #   base_addr: 0x70012000
-  #   permissions: rw-
-  #   size: 0x2000
-  # # MC
-  # mmio_id_16:
-  #   base_addr: 0x70019000
-  #   permissions: rw-
-  #   size: 0x1000
-  # # EMC
-  # mmio_id_17:
-  #   base_addr: 0x7001B000
-  #   permissions: rw-
-  #   size: 0x1000
-  # # SATA
-  # mmio_id_18:
-  #   base_addr: 0x70020000
-  #   permissions: rw-
-  #   size: 0x10000
-  # # XUSB_HOST
-  # mmio_id_19:
-  #   base_addr: 0x70090000
-  #   permissions: rw-
-  #   size: 0xA000
-  # # XUSB_PADCTL
-  # mmio_id_20:
-  #   base_addr: 0x7009F000
-  #   permissions: rw-
-  #   size: 0x1000
-  # # SDMMC1, SDMMC2, SDMMC3, SDMMC4
-  # mmio_id_21:
-  #   base_addr: 0x700B0000
-  #   permissions: rw-
-  #   size: 0x800
-  # # SDMMC1B
-  # mmio_id_22:
-  #   base_addr: 0x700B1000
-  #   permissions: rw-
-  #   size: 0x200
-  # # SDMMC2B
-  # mmio_id_23:
-  #   base_addr: 0x700B2200
-  #   permissions: rw-
-  #   size: 0x200
-  # # SDMMC3B
-  # mmio_id_24:
-  #   base_addr: 0x700B3400
-  #   permissions: rw-
-  #   size: 0x200
-  # # SDMMC4B
-  # mmio_id_25:
-  #   base_addr: 0x700B4600
-  #   permissions: rw-
-  #   size: 0x200
-  # # XUSB_DEV
-  # mmio_id_26:
-  #   base_addr: 0x700D0000
-  #   permissions: rw-
-  #   size: 0xA000
-  # # SYSCTR0
-  # mmio_id_27:
-  #   base_addr: 0x700F0000
-  #   permissions: rw-
-  #   size: 0x10000
-  # # QSPI
-  # mmio_id_28:
-  #   base_addr: 0x70410000
-  #   permissions: rw-
-  #   size: 0x1000
-  # # USB
-  # mmio_id_29:
-  #   base_addr: 0x7D000000
-  #   permissions: rw-
-  #   size: 0x1800
   rom:
     base_addr: 0x7000F800
-    permissions: r--
+    permissions: rw-
     size: 0x800
-  
+  # usb_buf1 and usb_buf2
+  mmio_dma_usb_buf:
+    overlay: true
+    base_addr: 0x40005000
+    permissions: rw-
+    size: 0x8000
+boot:
+  # A list of addresses required for a successful boot
+  required:
+    # An address (or symbol) in this list may indicate the if/else branch of a positive check
+    - 0x00101134
+    - 0x0010142A
+    - 0x00102896
+  # A list of addresses which indicate a failed boot
+  avoid:
+    # if/else branch of a failed check
+    - 0x00101474
+    # prepare_nvtboot_launch
+    - 0x00101328
+  # Address at which the firmware is considered booted (successfully or unsuccessfully based on the previous config attributes)
+  target: 0x00102896
+# This configuration is used to derive a firmware state which is considered to be booted successfully and continue fuzzing from here
