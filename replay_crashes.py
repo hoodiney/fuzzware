@@ -26,6 +26,7 @@ def run_fuzzware_on_files(files, config_path):
     for file_path in tqdm(files):
         # Create log file path by replacing the file extension with '.log'
         log_file_path = f"{os.path.splitext(file_path)[0]}.log"
+        print(log_file_path)
         
         # Open log file to write
         with open(log_file_path, 'w') as log_file:
@@ -62,6 +63,6 @@ parser.add_argument('-c', '--config_path')
 args = parser.parse_args()
 
 files = find_files_in_crashes(args.project_dir)
-# run_fuzzware_on_files(files, args.config_path)
+run_fuzzware_on_files(files, args.config_path)
 
-postprocess(files)
+# postprocess(files)

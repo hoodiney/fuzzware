@@ -4,7 +4,7 @@ import os
 import sys
 import logging
 
-from unicorn import (UC_ARCH_ARM, UC_MODE_MCLASS, UC_MODE_THUMB, UC_HOOK_CODE, Uc)
+from unicorn import (UC_ARCH_ARM, UC_MODE_MCLASS, UC_MODE_THUMB, UC_MODE_ARM926, UC_HOOK_CODE, UC_HOOK_BLOCK_UNCONDITIONAL, Uc)
 from unicorn.arm_const import UC_ARM_REG_PC, UC_ARM_REG_SP, UC_ARM_REG_CPSR 
 
 from . import globs, interrupt_triggers, native, timer, user_hooks
@@ -64,7 +64,7 @@ def configure_unicorn(args):
     if arch == "cortex-m":
         uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
     elif arch == "armv4t":
-        uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
+        uc = Uc(UC_ARCH_ARM, UC_MODE_ARM926)
     else:
         logger.error("unsupported arch")
         exit(1)
@@ -179,6 +179,8 @@ def configure_unicorn(args):
         if arch == "cortex-m":
             config['initial_sp'] = bytes2int(uc.mem_read(entry_image_base, 4))
             config['entry_point'] = bytes2int(uc.mem_read(entry_image_base + 4, 4))
+            print('initial_sp', hex(config['initial_sp']))
+            print('entry_point', hex(config['entry_point']))
         elif arch == "armv4t":
             config['initial_sp'] = 0
             config['entry_point'] = entry_image_base
@@ -402,6 +404,7 @@ def main():
         cpsr = uc.reg_read(UC_ARM_REG_CPSR)
         print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}")
     # if args.debug:
+    # uc.hook_add(UC_HOOK_BLOCK_UNCONDITIONAL, hook_code)
     # uc.hook_add(UC_HOOK_CODE, hook_code)
 
     globs.uc = uc

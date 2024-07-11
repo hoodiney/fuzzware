@@ -832,8 +832,8 @@ static inline int run_single(uc_engine *uc) {
 
     uc_reg_read(uc, UC_ARM_REG_PC, &pc);
 
-    // status = uc_emu_start(uc, pc | 1, 0, 0, 0);
-    status = uc_emu_start(uc, pc, 0, 0, 0);
+    status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+    // status = uc_emu_start(uc, pc, 0, 0, 0);
 
     if(custom_exit_reason != UC_ERR_OK) {
         status = custom_exit_reason;
@@ -1110,21 +1110,21 @@ uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
             set_timer_reload_val(instr_limit_timer_id, required_ticks-2);
 
             // Execute the prefix
-            // if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
-            //     puts("[ERROR] Could not execute the first some steps");
-            //     exit(-1);
-            // }
-            if(uc_emu_start(uc, pc, 0, 0, 0)) {
+            if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
                 puts("[ERROR] Could not execute the first some steps");
                 exit(-1);
             }
+            // if(uc_emu_start(uc, pc, 0, 0, 0)) {
+            //     puts("[ERROR] Could not execute the first some steps");
+            //     exit(-1);
+            // }
         }
         puts("[+] Initial constant execution (including optional prefix input) done, starting input execution."); fflush(stdout);
     } else {
         // child: Run until we hit an input consumption
         is_discovery_child = 1;
-        // uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
-        uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
+        uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+        // uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
 
         // We do not expect to get here. The child should exit by itself in get_fuzz
         printf("[ERROR] Emulation stopped using just the prefix input (%d: %s)\n", child_emu_status, uc_strerror(child_emu_status));
