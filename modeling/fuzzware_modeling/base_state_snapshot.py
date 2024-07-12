@@ -108,9 +108,11 @@ class BaseStateSnapshot:
     @classmethod
     def from_state_file(cls, statefile, cfg):
         base_snapshot = cls(cfg)
+        # DUO: load bb_trace, ram_trace, and mmio_trace from the corresponding state files in folder "mmio_states"
         base_snapshot.bb_trace, base_snapshot.ram_trace, base_snapshot.mmio_trace = load_traces_for_state(statefile)
 
         l.info("Loading state file: {}".format(statefile))
+        # DUO: "statefile" here means the state file in "mmio_states" folder
         with open(statefile, "r") as state_file:
             regs = {}
 
@@ -119,22 +121,25 @@ class BaseStateSnapshot:
                 l.debug("Looking at line: '{}'".format(line.rstrip()))
                 val = int(reg_regex.match(line).group(1), 16)
                 l.info("Restoring reg val: 0x{:x}".format(val))
+                # DUO: input: name, output: vex_name for registers
                 name = translate_reg_name_to_vex_internal_name(name)
                 regs[name] = val
 
             line = ""
             while line == "":
                 line = state_file.readline()
-
+            # DUO: convert the memory data in the state file into angr recognizable io bytes
             sio = BytesIO(line.encode()+state_file.read().encode())
 
         project = angr.Project(sio, arch="ARMCortexM", main_opts={'backend': 'hex', 'entry_point': regs[REG_NAME_PC]|1})
 
         # We need the following option in order for CBZ to not screw us over
+        # DUO: "default_strict_block_end" makes the symbex engine stops at every BB, 提高execution的determinism
         project.factory.default_engine.default_strict_block_end = True
 
         initial_state = project.factory.blank_state(addr=regs[REG_NAME_PC]|1)
 
+        # DUO: restore condition flags and stuff
         arm_thumb_quirks.add_special_initstate_reg_vals(initial_state, regs)
 
         # apply registers to state
@@ -145,9 +150,11 @@ class BaseStateSnapshot:
                 val |= 1
                 continue
 
+            # DUO: only not taint "itstate" and "cc_op"
             if leave_reg_untainted(name):
                 ast = claripy.BVV(val, 32)
             else:
+                # DUO_Q: Why taint the initial registers?
                 # For initial registers, we taint them by applying an AST with a fixed value via constraints
                 ast, ast_unconstrained = claripy.BVS(f"initstate_{name}", 32), claripy.BVS("{name}_unconstrained", 32)
                 bitvecval = claripy.BVV(val, 32)

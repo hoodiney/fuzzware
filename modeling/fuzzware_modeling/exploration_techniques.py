@@ -47,7 +47,7 @@ class FunctionReturner(angr.exploration_techniques.ExplorationTechnique):
     def __init__(self):
         super(FunctionReturner, self).__init__()
         self.has_deep_call = False
-
+    # DUO: the filter method of a simgr categorizes the state into different stashes.
     def filter(self, simgr, state, **kwargs):
         if state.liveness.returned:
             l.critical("State (pc={:x}) returned from initial function: {}. retval: {}".format(state.addr, state, return_reg(state)))

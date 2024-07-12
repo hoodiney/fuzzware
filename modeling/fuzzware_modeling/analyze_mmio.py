@@ -54,7 +54,7 @@ l = logging.getLogger("ANA")
         - found: all vars dead and nothing to step
         - vars_dead_but_path_constrained: also vars dead
 """
-
+# DUO: "cfg" here is config
 def perform_analyses(statefiles, cfg, is_debug=False, timeout=DEFAULT_TIMEOUT):
     if is_debug:
         set_log_levels(logging.DEBUG)
@@ -74,6 +74,9 @@ def setup_analysis(statefile, cfg=None):
         raise ValueError("State file does not exist: {}".format(statefile))
 
     # Load snapshot and pre-constrain state registers for tainting
+    # DUO: load the state file into angr loadable state. If necessary, taint the registers and stack memory by setting
+    # DUO: them as symbolic variables, but satisfying the constraints that their values should be the same as when the 
+    # DUO: state is loaded.
     project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
 
     # Breakpoints: MMIO handling
@@ -81,6 +84,8 @@ def setup_analysis(statefile, cfg=None):
     initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_mmio_intercept_read_after, condition=inspect_cond_is_mmio_read)
 
     # Breakpoints: Liveness
+    # DUO: the "initial_state.inspect.b" function is for setting up breakpoints in symbolic execution states
+    # DUO: "action" means the call back function when bp is hit
     initial_state.inspect.b('reg_write', when=angr.BP_BEFORE, action=inspect_bp_trace_liveness_reg)
     initial_state.inspect.b('mem_write', when=angr.BP_BEFORE, action=inspect_bp_trace_liveness_mem)
     initial_state.inspect.b('exit', when=angr.BP_BEFORE, action=inspect_bp_trace_ret)
@@ -142,7 +147,9 @@ def timeout_handler(signal_no, stack_frame):
     l.warning("Hard timeout triggered. Raising exception...")
     raise TimeoutError()
 
+# DUO: return "lines" and "config"
 def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOUT):
+    # DUO: "setup_analysis" configured the callback functions for MMIO accesses
     project, initial_state, base_snapshot = setup_analysis(statefile, cfg)
     start_pc = base_snapshot.initial_pc
 
@@ -158,9 +165,11 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
         return result_line, config_entry
 
     for stash_name in CUSTOM_STASH_NAMES:
+        # DUO: "populate" is for setting certain stash, setting it to [] can empty the stash
         simulation.populate(stash_name, [])
 
     # Simulation techniques
+    # DUO: those following exploration techniques can take effect together
     simulation.use_technique(angr.exploration_techniques.DFS())
     timeout_detector_technique = simulation.use_technique(TimeoutDetector(EXPLORATION_TIMEOUT_FACTOR * timeout))
     state_explosion_detector_technique = simulation.use_technique(StateExplosionDetector())
@@ -188,6 +197,7 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
         + "errored:       {}\n".format(simulation.errored) \
         + "unsat:         {}\n".format(simulation.unsat) \
         + "found:         {}".format(simulation.found))
+    # DUO: "deferred" stash is for states that should be explored later, "active" are states that currently under exploration
     simulation.move(from_stash="deferred", to_stash="active")
 
     # Check different error cases to trigger pre-fork state fallback
@@ -218,6 +228,7 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
     if timeout_detector_technique.timed_out or not simulation.found:
         if first_state_split_detector_technique.pre_fork_state:
            l.warning("Falling back to pre-fork state examination: {}".format(first_state_split_detector_technique.pre_fork_state))
+           # DUO: "detect_model" is for determining the model for each state
            config_entry, is_passthrough, is_constant, bitmask, set_vals = detect_model(start_pc, simulation, is_timed_out=True, pre_fork_state=first_state_split_detector_technique.pre_fork_state)
 
            result_line = "pc: 0x{:08x}, mmio: 0x{:08x}, is_passthrough: {}, is_constant: {}, bitmask: {:x}, set vals: {}\n".format(start_pc, mmio_addr, is_passthrough, is_constant, bitmask, set_vals)
@@ -228,6 +239,7 @@ def perform_analysis(statefile, cfg=None, is_debug=False, timeout=DEFAULT_TIMEOU
     else:
         l.info("Number of solution states (pc: {:08x}): {}".format(start_pc, len(simulation.found)))
 
+        # DUO: "detect_model" is for determining the model for each state
         config_entry, is_passthrough, is_constant, bitmask, set_vals = detect_model(start_pc, simulation)
 
         result_line = "pc: 0x{:08x}, mmio: 0x{:08x}, is_passthrough: {}, is_constant: {}, bitmask: {:x}, set vals: {}\n".format(start_pc, mmio_addr, is_passthrough, is_constant, bitmask, set_vals)
