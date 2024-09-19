@@ -61,6 +61,7 @@ def perform_analyses(statefiles, cfg, is_debug=False, timeout=DEFAULT_TIMEOUT):
         l.debug("debug logging enabled")
 
     result_lines, config_entries = [], []
+    # DUO: perform analysis for all the angr state files
     for statefile in statefiles:
         if any(tok in os.path.basename(statefile) for tok in TRACE_NAME_TOKENS):
             l.warning(f"Skipping trace file {statefile}")
@@ -80,6 +81,7 @@ def setup_analysis(statefile, cfg=None):
     project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
 
     # Breakpoints: MMIO handling
+    # DUO: 在访问address之前确认是否是MMIO address
     initial_state.globals['tmp_mmio_bp'] = initial_state.inspect.b('mem_read', when=angr.BP_BEFORE, action=inspect_bp_singleton_ensure_mmio)
     initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_mmio_intercept_read_after, condition=inspect_cond_is_mmio_read)
 
@@ -253,5 +255,6 @@ def analyze_mmio_and_store(statefiles, out_path, fuzzware_config_map=None, timeo
     """
     _, model_entries = perform_analyses(statefiles, fuzzware_config_map, is_debug=is_debug, timeout=timeout)
 
+    # DUO: update the config files with the recognized MMIO models
     update_config_file(out_path, model_entries)
     return True

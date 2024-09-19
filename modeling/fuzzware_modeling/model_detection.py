@@ -358,6 +358,7 @@ def detect_model(pc, simulation, is_timed_out=False, pre_fork_state=None):
         state = states[0]
         returned = state.liveness.returned
         all_vars_out_of_scope = state_vars_out_of_scope(state)
+        # DUO: 在先前记录的constraints里含有某个variable, 返回True或者False
         constrains_path = state_contains_tracked_mmio_path_constraints(state)
         tracked_mmio_constrains_any_path |= constrains_path
 

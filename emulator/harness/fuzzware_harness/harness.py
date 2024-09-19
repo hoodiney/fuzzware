@@ -201,7 +201,17 @@ def configure_unicorn(args):
         if args.dump_mmio_states:
             if args.bb_trace_file is None:
                 args.bb_trace_file = "/dev/null"
-
+    
+    if args.dumped_hook_func_state_name_prefix is not None:
+        if len(args.hook_funcs) != len(args.hook_func_addrs):
+            logger.error("Incompatible number for hook functions and their addresses")
+            sys.exit(1)
+        # key: address, value: function name
+        hook_func_dict = {}
+        for i in range(len(args.hook_funcs)):
+            hook_func_dict[int(args.hook_func_addrs[i], 0) & ~1] = args.hook_funcs[i]
+        snapshot.init_hook_func_state_snapshotting(uc, args.dump_hook_func_state_filename, hook_func_dict, args.dumped_hook_func_state_name_prefix)
+        
     trace_ids.set_trace_id_limit(args.trace_event_limit)
     if args.mmio_trace_file is not None:
         trace_mem.init_mmio_tracing(uc, args.mmio_trace_file, None, mmio_ranges)
@@ -373,6 +383,19 @@ def populate_parser(parser):
     parser.add_argument('--dump-mmio-states', dest='dump_mmio_states', default=False, action='store_true', help="Dump states at every unique MMIO access.")
     parser.add_argument('--dumped-mmio-contexts', default='', help="Restrict the (pc, mmio_address) contexts for which to dump states for. Format: pc1:mmio1,pc2:mmio2,...,pcX:mmioX")
     parser.add_argument('--dumped-mmio-name-prefix', default='', help="Add a prefix to each generated MMIO state name for distinguishability")
+
+    # Hook function state dump
+    # e.g.
+    # fuzzware emu -c playground/config.yml \
+    #         --hook-func-state-out flow_recorder/ \
+    #         --dumped-hook-func-state-name-prefix test_0_ \
+    #         --hook-func test_0 \
+    #         --hook-func-addr 0x0800014C \
+    #          pipeline/data/base_inputs/03_empty_input
+    parser.add_argument('--hook-func-state-out', dest='dump_hook_func_state_filename', default=None, help="Destination of output state(s) for hook functions.")
+    parser.add_argument('--dumped-hook-func-state-name-prefix', default='', help="Add a prefix to each dumped hook function state name for distinguishability")
+    parser.add_argument('--hook-func', dest='hook_funcs', action='append', default=[], help="The hook functions to be synthesized")
+    parser.add_argument('--hook-func-addr', dest='hook_func_addrs', action='append', default=[], help="The addresses of the hook functions to be synthesized")
 
 def main():
     parser = argparse.ArgumentParser(description="Fuzzware emulation harness")

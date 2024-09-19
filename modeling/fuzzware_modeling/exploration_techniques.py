@@ -72,7 +72,7 @@ class FunctionReturner(angr.exploration_techniques.ExplorationTechnique):
                 for var in successor_state.liveness.tracked_vars:
                     # TODO: Convert this to successor_state.history.jump_guards instead as soon as a jump guard shows up for all (including CBZ) instructions
                     if any([contains_var(guard, var) for guard in successor_state.solver.constraints]):
-                        l.warning("State is now constrained: {}".format(successor_state))
+                        l.warning("State is now constrained: {}, constraints are {}".format(successor_state, successor_state.solver.constraints))
                         successor_state.globals['path_constrained'] = True
                         break
 

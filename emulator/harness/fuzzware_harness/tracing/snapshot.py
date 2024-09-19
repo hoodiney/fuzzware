@@ -3,7 +3,7 @@ from unicorn.arm_const import (UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_A
             UC_ARM_REG_R5, UC_ARM_REG_R6, UC_ARM_REG_R7, UC_ARM_REG_R8, UC_ARM_REG_R9,
             UC_ARM_REG_R10, UC_ARM_REG_R11, UC_ARM_REG_R12, UC_ARM_REG_LR, UC_ARM_REG_PC,
             UC_ARM_REG_SP, UC_ARM_REG_XPSR)
-from unicorn.unicorn_const import UC_HOOK_MEM_READ, UC_HOOK_MEM_READ_AFTER
+from unicorn.unicorn_const import UC_HOOK_MEM_READ, UC_HOOK_MEM_READ_AFTER, UC_HOOK_BLOCK_UNCONDITIONAL
 from ..exit import add_exit_hook
 from .trace_bbs import dump_current_bb_trace
 
@@ -178,6 +178,7 @@ def mem_hook_dump_state_after_mmio_read(uc, access, address, size, value, user_d
 def mem_hook_record_regs_before_mmio_read(uc, access, address, size, value, user_data):
     global latest_regs
     pc = uc.reg_read(UC_ARM_REG_PC)
+    print(f"AAAAAAAAAAAAAAAAAAAAAAAA {pc:#x}")
     # Allow user to specify which MMIO states are of interest
     if dump_pc_address_pairs and (pc, address) not in dump_pc_address_pairs:
         return
@@ -219,3 +220,23 @@ def init_state_snapshotting(uc, dump_filename, dump_mmio_states, mmio_ranges, mm
         # We only want to dump the last state
         # dump_state_file = open(dump_filename, "w")
         register_exit_state_dump_hook(dump_filename)
+
+hook_func_dict = None
+hook_state_dump_dir = None
+hook_state_name_prefix = None
+from .. import globs
+def bb_hook_func_state_dump(uc, address, size, user_data):
+    global hook_func_dict, hook_state_dump_dir, hook_state_name_prefix
+    # if we are at the entry of one of the hook functions
+    if address in hook_func_dict:
+        latest_regs = collect_regs(uc)
+        _, content_map = collect_state(uc)
+        state_filename = f"{hook_state_dump_dir}/{hook_state_name_prefix}hook_func_state_{address}_{hook_func_dict[address]}_{globs.input_file_name}"
+        dump_state(state_filename, latest_regs, content_map)
+
+def init_hook_func_state_snapshotting(uc, dump_dir, hook_funcs, name_prefix):
+    global hook_func_dict, hook_state_dump_dir, hook_state_name_prefix
+    hook_func_dict = hook_funcs
+    hook_state_dump_dir = dump_dir
+    hook_state_name_prefix = name_prefix
+    uc.hook_add(UC_HOOK_BLOCK_UNCONDITIONAL, bb_hook_func_state_dump, None)

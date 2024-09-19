@@ -83,6 +83,7 @@ def inspect_bp_trace_liveness_reg(state):
     # This has to be done because size MUST NOT be None if passed to load.
     reg_write_length = state.inspect.reg_write_length if state.inspect.reg_write_length else state.inspect.reg_write_expr.length // state.arch.byte_width
 
+    # DUO: state.inspect.reg_write_expr记录了当前写入寄存器的值的表达式
     state.liveness.on_before_reg_write(state.inspect.reg_write_expr, reg_write_offset, reg_write_length)
 
 def inspect_bp_trace_liveness_mem(state):
@@ -98,6 +99,7 @@ def inspect_bp_trace_liveness_mem(state):
     elif state.globals['path_constrained']:
         state.globals['meaningful_actions_while_constrained'] = True
 
+    # DUO: 此处的逻辑用于判断是否是在向stack上写入, 之所以这么麻烦是因为fuzzware不知道函数的stack起始点在哪里, 但我们是知道的, 所以直接判断即可.
     if state.inspect.mem_write_address.symbolic and contains_var(state.inspect.mem_write_address, state.liveness.base_snapshot.regvars_by_name[REG_NAME_SP]):
         # Write to local variable
         l.debug("[{:x}] Write to local variable!".format(state.addr))

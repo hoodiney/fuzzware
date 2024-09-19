@@ -63,6 +63,7 @@ def is_ast_mmio_address(state, ast):
     return is_mmio_address(state, addr)
 
 def state_returns_val(state):
+    # DUO: 通过check在返回时r0中有没有state.liveness.tracked_vars中出现的变量来判断是否有返回值
     return (not state.globals['dead_write_to_env']) and any([contains_var(return_reg(state), var) for var in state.liveness.tracked_vars])
 
 def state_vars_out_of_scope(state):

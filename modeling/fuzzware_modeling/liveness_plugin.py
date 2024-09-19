@@ -29,11 +29,14 @@ class StackFrame:
     def copy(self):
         return StackFrame(self.base_sp, copy.deepcopy(self.tracked_addrs))
 
+# DUO: 只需要记录MMIO read的variable，随后在stack write和reg write中更改reference
+# DUO: SimStatePlugin的主要作用在于 (区别于简单的定义event的callback函数) 是其可以维护一些state信息，
+# 比如LivenessPlugin中的alive_varname_counts
 class LivenessPlugin(angr.SimStatePlugin):
-    base_snapshot: BaseStateSnapshot
+    base_snapshot: BaseStateSnapshot # DUO: 不需要BaseStateSnapshot，它的作用是保证变量有一个初始的值
 
-    alive_varname_counts: dict
-    tracked_vars: list
+    alive_varname_counts: dict # DUO: 记录MMIO var
+    tracked_vars: list # DUO: 被taint的新添加的variable, 主要作用是用来判断MAX_DEAD_VARS的终止条件
     stackframes: list
     returned: bool
     all_vars_dead: bool
@@ -51,13 +54,17 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         if stackframes is None:
             # Create initial stackframe
+            # DUO: StackFrame的添加是per function call的
             self.stackframes = [StackFrame()]
         else:
             self.stackframes = stackframes
 
+    # DUO: angr.SimStatePlugin的子类都需要实现一个copy函数，当诸如状态复制等情况发生时会调用
     @angr.SimStatePlugin.memo
     def copy(self, memo):
         return LivenessPlugin(self.base_snapshot, copy.deepcopy(self.alive_varname_counts), copy.deepcopy(self.tracked_vars), returned=self.returned, stackframes=[f.copy() for f in self.stackframes], all_vars_dead=self.all_vars_dead)
+
+    # DUO: TODO: 还需要实现merge和widen函数来控制plugin在state合并和扩展时的行为
 
     @property
     def call_depth(self):
@@ -140,6 +147,7 @@ class LivenessPlugin(angr.SimStatePlugin):
             if NVIC_RET_START <= state.addr <= NVIC_RET_START | 0xfff:
                 l.critical("returning from ISR")
 
+    # DUO: 该函数用于跟踪寄存器中的变量引用，增加新写入的符号表达式中的变量引用计数，减少被覆盖的旧符号表达式中的变量引用计数。
     def on_before_reg_write(self, write_expr, reg_write_offset, write_len):
         """
         Called before register is written to.
@@ -155,6 +163,7 @@ class LivenessPlugin(angr.SimStatePlugin):
                     self._add_ref(varname)
 
         # Kill overwritten references
+        # 通过load获取register的旧值, 来减少value的reference
         old_val = self.state.registers.load(reg_write_offset, write_len, disable_actions=True, inspect=False, endness=archinfo.Endness.LE)
         if old_val.symbolic:
             for varname in self.state.solver.simplify(old_val).variables:
@@ -219,6 +228,7 @@ class LivenessPlugin(angr.SimStatePlugin):
 
         new_var = claripy.BVS('mmio_{:08x}'.format(addr), 8* read_len)
 
+        # DUO: 在MMIO read前的bp handler中记录了self.base_snapshot.mmio_addr以及access pc
         if not self.returned and addr == self.base_snapshot.mmio_addr and self.state.addr == self.base_snapshot.access_pc:
             l.warning(f"Adding mmio variable {new_var} {new_var._encoded_name}")
             self.alive_varname_counts[new_var._encoded_name.decode()] = 0

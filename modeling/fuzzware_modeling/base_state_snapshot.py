@@ -155,7 +155,11 @@ class BaseStateSnapshot:
                 ast = claripy.BVV(val, 32)
             else:
                 # DUO_Q: Why taint the initial registers?
+                # DUO_A: 通过添加"constraint = ast == bitvecval"这一约束，保证寄存器在initial_state时有特定的值。但这并不代表其会在所有情况下都被求解为初始值
+                # ， 在执行过程中会有新的constraint被添加，这会影响最终的求解。因此添加约束的ast只是为了让在初始state中有初始值。
+
                 # For initial registers, we taint them by applying an AST with a fixed value via constraints
+                # DUO: 非约束变量用来描述没有限制与约束的变量，可以取任何可能的值，可以用来表示e.g. 未初始化的内存，input
                 ast, ast_unconstrained = claripy.BVS(f"initstate_{name}", 32), claripy.BVS("{name}_unconstrained", 32)
                 bitvecval = claripy.BVV(val, 32)
                 constraint = ast == bitvecval
@@ -170,14 +174,17 @@ class BaseStateSnapshot:
                 if name == REG_NAME_SP:
                     initial_sp = val
 
+            # 约束initial_state中的寄存器有一个初始值，将initial_state中的register替换成BVS
             setattr(initial_state.regs, name, ast)
 
         # Taint stack memory by setting constraints on it, as we do for initial registers
+        # DUO: 和对寄存器的处理类似，符号化最多256字节的栈内容，并taint
         stack_readsize = min(256, (2**32)-initial_sp)
         stack_mem = initial_state.memory.load(initial_sp, stack_readsize)
         stack_mem_ast, stack_mem_ast_unconstrained = ast = claripy.BVS(f"init_mem_sp", 8*stack_readsize), claripy.BVS(f"init_mem_sp_unconstrained", 8*stack_readsize)
         constraint = stack_mem_ast == stack_mem
         initial_state.add_constraints(constraint)
+        # 将initial_state中的stack替换成BVS
         initial_state.memory.store(initial_sp, stack_mem_ast)
         base_snapshot.init_mem_bitvecs.append(stack_mem_ast)
         base_snapshot.init_mem_bitvecvals.append(stack_mem)
