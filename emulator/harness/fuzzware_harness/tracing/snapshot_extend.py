@@ -12,7 +12,7 @@ logger = logging.getLogger("emulator")
 uc_reg_consts = [UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_R4,
             UC_ARM_REG_R5, UC_ARM_REG_R6, UC_ARM_REG_R7, UC_ARM_REG_R8, UC_ARM_REG_R9,
             UC_ARM_REG_R10, UC_ARM_REG_R11, UC_ARM_REG_R12, UC_ARM_REG_LR, UC_ARM_REG_PC,
-            UC_ARM_REG_SP, UC_ARM_REG_XPSR]
+            UC_ARM_REG_SP, UC_ARM_REG_CPSR]
 
 NUM_BB_LINES_FOR_MMIO_ACCESS_STATE_TRACE = 50 * 1000
 
@@ -51,7 +51,7 @@ def collect_state(uc):
     lr = uc.reg_read(UC_ARM_REG_LR)
     pc = uc.reg_read(UC_ARM_REG_PC)  # retaddr
     sp = uc.reg_read(UC_ARM_REG_SP)
-    xpsr = uc.reg_read(UC_ARM_REG_XPSR)
+    cpsr = uc.reg_read(UC_ARM_REG_CPSR)
     """
     regs = collect_regs(uc)
 
@@ -126,7 +126,7 @@ r12=0x{:x}
 lr=0x{:x}
 pc=0x{:x}
 sp=0x{:x}
-xpsr=0x{:x}
+cpsr=0x{:x}
 """.format(*[regs[const] for const in uc_reg_consts]))
         logger.debug("Writing ihex dump now...")
         ih.write_hex_file(f)

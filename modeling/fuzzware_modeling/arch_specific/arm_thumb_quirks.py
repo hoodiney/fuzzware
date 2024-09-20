@@ -109,6 +109,93 @@ def find_itstate_value(initial_state, regs):
 
     return it_state
 
+def find_itstate_value_extend(initial_state, regs):
+    """
+    Derives the value of the ITSTATE register from a given memory dump and register assignments.
+
+    This works by disassembling backwards from PC and looking for an IT instruction and then deriving
+    the value from the current PC's offset to the IT instruction.
+    """
+
+    # ITSTATE hacks
+    # We try to recover the IT state in the vex-expected format
+    # The format is described here: https://github.com/angr/vex/blob/master/pub/libvex_guest_arm.h#L161
+    # From the current PC, we try to step backwards, each time looking for an IT instruction
+    # If such an instruction is found, we recover the IT-state, knowing that our current instruction
+    # is the one to be executed (the required condition is the one which was met in the emulator)
+    # We can just find our position in the IT block, parse the IT mnemonic to find our condition and
+    # apply the state based on the rest of the mnemonic
+
+    # Constants derived from their documentation (lower nibble 1: is itblock instr, upper nibble: 0 for always, 1 for never)
+    ITSTATE_BYTE_EXEC_NEVER  = 0xf1
+    ITSTATE_BYTE_EXEC_ALWAYS = 0x01
+
+    it_state = 0 # normally: no state, just execute
+    try:
+        l.info("Looking for IT instruction before us")
+        start_addr = regs['pc'] # XXX TODO: testing
+        cs = archinfo.ArchARM().capstone
+        look_back = 6 + 2 # 3*2 for 3 previous instructions plus the IT instruction
+        size = look_back + 4 * 4
+
+        mem = initial_state.solver.eval(initial_state.memory.load(start_addr - look_back, size), cast_to=bytes)
+
+        cs_address, own_size, own_mnemonic, own_opstr = list(cs.disasm_lite(bytes(mem[look_back:]), 8))[0]
+        # l.info("Own Instr (size: {}): {:#08x}:\t{}\t{}".format(own_size, start_addr, own_mnemonic, own_opstr))
+        if own_size == 2:
+            # We might be in an IT block
+            # Now look back for a maximum of 4 times, until
+            # a) we find a 4-byte instruction -> cannot be in it block
+            # b) we find an IT instruction
+            for i in range(4):
+                insns = list(cs.disasm_lite(bytes(mem[look_back - 2 * i - 2:]), 0x1000))
+                if not insns:
+                    # disassembling did not make sense at that offset, no need to look further
+                    break
+                cs_address, cs_size, it_mnemonic, cs_opstr = insns[0]
+                if cs_size != 2:
+                    break
+                if it_mnemonic.lower().startswith("it"):
+                    it_block_len = len(it_mnemonic) - 1
+                    if i >= it_block_len:
+                        l.info("Outside it block")
+                        # we are already outside the block
+                        break
+
+                    it_state = ITSTATE_BYTE_EXEC_ALWAYS
+                    if it_block_len == 1:
+                        l.info("Single instruction IT block")
+                        # simple conditional execution, exit
+                        break
+
+                    l.info("Found ITSTATE instruction!")
+
+                    # the current instruction is instruction number
+                    own_position = i
+                    num_following_members = it_block_len - own_position - 1
+                    # l.info("num_following_members: {}".format(num_following_members))
+                    own_modifier = it_mnemonic[1+own_position]
+                    for offset in range(1, num_following_members+1):
+                        if own_modifier == it_mnemonic[1 + offset]:
+                            # l.info("equal modifier, activate!")
+                            it_state |= (ITSTATE_BYTE_EXEC_ALWAYS << (8 * offset))
+                        else:
+                            # l.info("other modifier, deactivate...")
+                            it_state |= (ITSTATE_BYTE_EXEC_NEVER << (8 * offset))
+
+                    #it_block_insns = list(cs.disasm_lite(bytes(mem[look_back - 2 * i - 2:look_back - 2 * i - 2 + (it_block_len + 1) * 2]), (it_block_len + 1) * 2))
+                    ## we need to skip the IT instruction and our own instruction
+                    #following_insns = it_block_insns[own_position+2:]
+                    #for (cs_address, cs_size, cs_mnemonic, cs_opstr) in following_insns:
+                    #    l.info("    Instr: {:#08x}:\t{}\t{}".format(regs['pc'], cs_mnemonic, cs_opstr))
+                    l.info("Generated itstate: 0x{:08x}".format(it_state))
+                    break
+    except:
+        l.info("ERROR during ITSTATE recovery, resetting to 0")
+        it_state = 0
+
+    return it_state
+
 ARMG_CC_OP_COPY = 0
 def add_special_initstate_reg_vals(initial_state, regs):
     # In state restoration, restore condition flags. Execution may rely on condition flags set before.
@@ -116,6 +203,56 @@ def add_special_initstate_reg_vals(initial_state, regs):
 
     # Also try figuring out the current itstate value
     regs['itstate'] = find_itstate_value(initial_state, regs)
+
+# set flag registers for ARM
+'''
+Bits	Name	Function
+[31]	N	    Negative condition code flag
+[30]	Z	    Zero condition code flag
+[29]	C	    Carry condition code flag
+[28]	V	    Overflow condition code flag
+[27]	Q	    Cumulative saturation bit
+[26:25]	IT[1:0]	If-Then execution state bits for the Thumb IT (If-Then) instruction
+[24]	J	    Jazelle bit
+[19:16]	GE	    Greater than or Equal flags
+[15:10]	IT[7:2]	If-Then execution state bits for the Thumb IT (If-Then) instruction
+[9]	    E	    Endianness execution state bit: 0 - Little-endian, 1 - Big-endian
+[8]	    A	    Asynchronous abort mask bit
+[7]	    I	    IRQ mask bit
+[6]	    F	    FIRQ mask bit
+[5]	    T	    Thumb execution state bit
+[4:0]	M	    Mode field
+'''
+def add_special_initstate_reg_vals_extend(initial_state, regs):
+    # In state restoration, restore condition flags. Execution may rely on condition flags set before.
+    # cpsr_value = regs['cc_dep1']
+
+    # 解析并设置 N, Z, C, V 标志
+    # initial_state.regs.flags = cpsr_value & 0xF0000000
+
+    # 设置 Q flag
+    # A 32-bit value which is used to compute the APSR.Q (sticky
+    #      saturation) flag, when necessary.  If the value stored here
+    #      is zero, APSR.Q is currently zero.  If it is any other value,
+    #      APSR.Q is currently one.
+    # initial_state.regs.qflag32 = (cpsr_value >> 27) & 1
+
+    # 设置 ITSTATE
+    # initial_state.regs.itstate = (cpsr_value >> 25) & 0x3F
+
+    # 设置 GE flags
+    #  32-bit values to represent APSR.GE0 .. GE3.  Same
+    #      zero-vs-nonzero scheme as for QFLAG32.
+    # initial_state.regs.geflag0 = (cpsr_value >> 16) & 1
+    # initial_state.regs.geflag1 = (cpsr_value >> 17) & 1
+    # initial_state.regs.geflag2 = (cpsr_value >> 18) & 1
+    # initial_state.regs.geflag3 = (cpsr_value >> 19) & 1
+
+    # DUO: 理解为, 当cc_op为0时 (即CC_OP_COPY), 会直接copy cc_dep1的值作为当前的状态
+    regs['cc_op'] = ARMG_CC_OP_COPY
+
+    # Also try figuring out the current itstate value
+    # regs['itstate'] = find_itstate_value_extend(initial_state, regs)
 
 def model_special_strex(initial_state, insn):
     """

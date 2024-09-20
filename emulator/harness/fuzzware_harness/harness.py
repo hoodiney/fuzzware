@@ -4,14 +4,14 @@ import os
 import sys
 import logging
 
-from unicorn import (UC_ARCH_ARM, UC_MODE_MCLASS, UC_MODE_THUMB, UC_HOOK_CODE, Uc)
-from unicorn.arm_const import UC_ARM_REG_PC, UC_ARM_REG_SP, UC_ARM_REG_CPSR 
+from unicorn import (UC_ARCH_ARM, UC_MODE_MCLASS, UC_MODE_THUMB, UC_HOOK_CODE, UC_MODE_ARM926, Uc, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE, UC_MODE_ARM)
+from unicorn.arm_const import UC_ARM_REG_PC, UC_ARM_REG_SP, UC_ARM_REG_CPSR, UC_ARM_REG_XPSR
 
 from . import globs, interrupt_triggers, native, timer, user_hooks
 from .gdbserver import GDBServer
 from .mmio_models import parse_mmio_model_config
 from .sparkle import add_sparkles
-from .tracing import snapshot, trace_bbs, trace_ids, trace_mem
+from .tracing import snapshot, trace_bbs, trace_ids, trace_mem, snapshot_extend
 from .user_hooks import (add_block_hook, add_func_hook,
                          maybe_register_global_block_hook)
 from .util import (bytes2int, load_config_deep, parse_address_value,
@@ -64,7 +64,9 @@ def configure_unicorn(args):
     if arch == "cortex-m":
         uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
     elif arch == "armv4t":
-        uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB)
+        uc = Uc(UC_ARCH_ARM, UC_MODE_ARM926)
+    elif arch == "cortex-a7":
+        uc = Uc(UC_ARCH_ARM, UC_MODE_ARM)
     else:
         logger.error("unsupported arch")
         exit(1)
@@ -197,7 +199,10 @@ def configure_unicorn(args):
 
     # Stuff which needs to be executed on exit. We need to register those before initializing the native module
     if args.dump_state_filename is not None:
-        snapshot.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
+        if arch == "armv4t":
+            snapshot_extend.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
+        else:
+            snapshot.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
         if args.dump_mmio_states:
             if args.bb_trace_file is None:
                 args.bb_trace_file = "/dev/null"
@@ -282,10 +287,8 @@ def configure_unicorn(args):
   
     # We enable systick by default
     use_systick = ('use_systick' not in config or ('use_systick' in config and config['use_systick'] is True))
-    use_systick = False
     print(f"use_systick: {use_systick}")
     use_nvic = use_systick or ('use_nvic' in config and config['use_nvic'] is True)
-    use_nvic = False
     print(f"use_nvic: {use_nvic}")
     # Implementation detail: Interrupt triggers need to be configured before the nvic (to enable multiple interrupt enabling)
     if use_nvic and 'interrupt_triggers' in config and config['interrupt_triggers']:
@@ -397,12 +400,55 @@ def main():
         args.debug = True
 
     uc = configure_unicorn(args)
-    # Add the hook for debugging, tracing every pc executed 
+    # DUO: 设置FUSE_SECURITY_MODE为1, 以进入try_load_from_rcm
+    uc.mem_write(0x7000F9A0, bytes([1]))
+    # Add the hook for debugging, tracing every pc executed
+
+    tegra_func_names = {}
+    with open("./tegra_function_dump.csv") as file:
+        lines = file.readlines()
+        lines = [line[:-1] for line in lines]
+        for line in lines:
+            func_name = line.split(',')[0]
+            func_addr = line.split(',')[1]
+            tegra_func_names[int(func_addr, 16)] = func_name
+
     def hook_code(uc, address, size, user_data):
+        xpsr = uc.reg_read(UC_ARM_REG_XPSR)
         cpsr = uc.reg_read(UC_ARM_REG_CPSR)
-        print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}")
+        if address in tegra_func_names:
+            print(f"Executing at {tegra_func_names[address]} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
+        else:
+            print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
+        # if address == 0x10253c:
+        #     import ipdb; ipdb.set_trace()
+        # set the negative flag (cpsr[31]) to 1 to jump out of function sub_102D1E, otherwise would fall into
+        # exception handling
+        if address & ~1 == 0x102d7e:
+            uc.reg_write(UC_ARM_REG_CPSR, cpsr | 0x80000000)
+
     # if args.debug:
-    # uc.hook_add(UC_HOOK_CODE, hook_code)
+    uc.hook_add(UC_HOOK_CODE, hook_code)
+    # TODO: 在config.yml里添加初始化某些内存内容的逻辑, 可以设置一个初始化函数来执行
+    uc.mem_write(0x40002990, 0x40005000.to_bytes(4, byteorder='little'))
+    uc.mem_write(0x40002994, 0x40009000.to_bytes(4, byteorder='little'))
+
+    # NOTE: unicorn对delay_us的第一条指令的反汇编是错的
+    def g_usb_req_0x10_read_handler(uc, access, address, size, value, user_data):
+        pc = uc.reg_read(UC_ARM_REG_PC)
+        # 0x40003980是g_usb_req+0x10
+        if address == 0x40003980:
+            if pc in [0x107912, 0x107913]: 
+                uc.mem_write(address, b'\x01' * size)
+
+    uc.hook_add(UC_HOOK_MEM_READ, g_usb_req_0x10_read_handler)
+
+    def inspect_mem(uc, access, address, size, value, user_data):
+        if address & ~1 == 0x40002B3C:
+            content = uc.mem_read(0x40002B3C, 4)[::-1].hex()
+            pc = uc.reg_read(UC_ARM_REG_PC)
+            print(f"LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL pc {pc:#x}, response_descriptor_ptr {content}, access {access}, value {value:#x}") 
+    # uc.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, inspect_mem)
 
     globs.uc = uc
     print(f"--------------------------- cpsr in the beginning is {hex(uc.reg_read(UC_ARM_REG_CPSR))} ---------------------------")

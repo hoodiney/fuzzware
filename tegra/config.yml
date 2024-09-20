@@ -155,11 +155,16 @@ memory_map:
     permissions: rw-
     size: 0x800
   # usb_buf1 and usb_buf2
-  mmio_dma_usb_buf:
+  # mmio_dma_usb_buf:
+  #   overlay: true
+  #   base_addr: 0x40005000
+    # permissions: rw-
+    # size: 0x8000
+  mmio_g_usbd_reqp:
     overlay: true
-    base_addr: 0x40005000
+    base_addr: 0x40003000
     permissions: rw-
-    size: 0x8000
+    size: 0x1000
 boot:
   # A list of addresses required for a successful boot
   required:
@@ -176,3 +181,32 @@ boot:
   # Address at which the firmware is considered booted (successfully or unsuccessfully based on the previous config attributes)
   target: 0x00102896
 # This configuration is used to derive a firmware state which is considered to be booted successfully and continue fuzzing from here
+handlers:
+  sub_102CEE:
+    addr: 0x102cee
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.sub_102CEE
+  rcm_send_initial_hwinfo_after_connection:
+    addr: 0x102a80
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.rcm_send_initial_hwinfo_after_connection
+  delay_us:
+    addr: 0x100e50
+  usb_flush_ep:
+    addr: 0x1071b8
+  meminit_memunpack:
+    addr: 0x101070
+  debug_output:
+    addr: 0x1022ea
+  sub_114D3C:
+    addr: 0x114d3c
+  some_usb_charger_stuff:
+    addr: 0x104282
+  j_memcpy_libc:
+    addr: 0x104356
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.j_memcpy_libc
+  rcm_error_and_reset_ep1:
+    addr: 0x1023fc
+  memset:
+    addr: 0x104344
+  skip_0x107848:
+    addr: 0x107848
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.skip_0x107848

@@ -137,6 +137,7 @@ def inspect_bp_singleton_ensure_mmio(state):
     if read_pc | 1 != state.liveness.base_snapshot.initial_pc | 1:
         raise Exception("First MMIO access not performed on first instruction. This is likely due to an unsupported instruction.")
 
+    # DUO: 这里假设了第一个memory access一定是MMIO access, 从design的角度而言是对的
     if not is_mmio_address(state, read_addr):
         start = read_addr & (~0xfff)
         l.warning("Adding non-configured MMIO page at: 0x{:08x}".format(start))
@@ -147,6 +148,7 @@ def inspect_bp_singleton_ensure_mmio(state):
     state.liveness.base_snapshot.mmio_access_size = state.inspect.mem_read_length
     l.warning(f"Found first MMIO access from {state.liveness.base_snapshot.access_pc:08x} to address: {read_addr:08x}")
 
+    # DUO: 只对第一次memory read生效
     state.inspect.remove_breakpoint("mem_read", state.globals['tmp_mmio_bp'])
 
 def inspect_bp_trace_reads(state):

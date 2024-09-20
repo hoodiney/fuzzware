@@ -14,11 +14,13 @@ from .base_state_snapshot import BaseStateSnapshot
 from .fuzzware_utils.config import update_config_file, TRACE_NAME_TOKENS
 from .model_detection import detect_model, create_model_config_map_errored
 from .liveness_plugin import LivenessPlugin
+from .liveness_plugin_extend import LivenessExtendPlugin
 from .exploration_techniques import MMIOVarScoper, FunctionReturner, FirstStateSplitDetector, TimeoutDetector, LoopEscaper, StateExplosionDetector
 from .inspect_breakpoints import inspect_bp_track_newly_added_constraints, inspect_bp_trace_call, inspect_bp_trace_ret, inspect_bp_trace_liveness_reg, inspect_bp_trace_liveness_mem, inspect_cond_is_mmio_read, inspect_bp_mmio_intercept_read_after, inspect_bp_trace_reads, inspect_bp_trace_writes, inspect_bp_singleton_ensure_mmio, inspect_after_address_concretization, inspect_bp_mem_read, inspect_bp_mem_write
 from .arch_specific.arm_thumb_quirks import try_handling_decode_error, model_arch_specific
 from .arch_specific.arm_thumb_regs import REGULAR_REGISTER_NAMES
 from .logging_utils import set_log_levels
+from .base_state_snapshot_extend import BaseStateSnapshotExtend
 
 l = logging.getLogger("ANA")
 
@@ -74,9 +76,17 @@ def setup_analysis(statefile, cfg=None):
         raise ValueError("State file does not exist: {}".format(statefile))
 
     # Load snapshot and pre-constrain state registers for tainting
-    project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
-
+    # Use cortex-m BaseStateSnapshot as deafult, specify differently if config file present
+    if cfg is not None:
+        if cfg['arch'] == 'armv4t':
+            project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
+        else:
+            project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
+    else:
+        project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
+        # project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
     # Breakpoints: MMIO handling
+    # DUO: 这个bp只是为了确认是否有漏掉的MMIO page
     initial_state.globals['tmp_mmio_bp'] = initial_state.inspect.b('mem_read', when=angr.BP_BEFORE, action=inspect_bp_singleton_ensure_mmio)
     initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_mmio_intercept_read_after, condition=inspect_cond_is_mmio_read)
 
@@ -106,7 +116,8 @@ def setup_analysis(statefile, cfg=None):
     initial_state.options.add(angr.options.TRACK_MEMORY_ACTIONS)
 
     # Register plugin to track dynamic liveness
-    initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+    # initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+    initial_state.register_plugin('liveness', LivenessExtendPlugin(base_snapshot))
 
     return project, initial_state, base_snapshot
 
@@ -126,7 +137,6 @@ def wrapped_explore(simulation, **kwargs):
         except angr.errors.SimIRSBNoDecodeError as e:
             l.warning(f"Got SimIRSBNoDecodeError error: {e}")
             addr = insn_addr_from_SimIRSBNoDecodeError(e)
-
             # Try recovering from things like breakpoints
             if not try_handling_decode_error(simulation, stash_name, addr):
                 return False

@@ -1,4 +1,4 @@
-""" WIP place for ARM Thumb specific constants.
+""" WIP place for ARM specific constants.
 This is the result from scraping architecture-specific register name lists from the code.
 
 TODO: Unify and replace this with archinfo
@@ -6,7 +6,7 @@ TODO: Unify and replace this with archinfo
 STATE_SNAPSHOT_REG_LIST = ['r0', 'r1', 'r2', 'r3', 'r4',
         'r5', 'r6', 'r7', 'r8', 'r9',
         'r10', 'r11', 'r12', 'lr', 'pc',
-        'sp', 'xpsr']
+        'sp', 'cpsr']
 
 SCOPE_REG_NAMES = ('r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r10', 'r11', 'r12', 'lr', 'sp', 'pc')
 
@@ -23,11 +23,14 @@ def return_reg(state):
 def translate_reg_name_to_vex_internal_name(name):
     name = name.lower()
 
-    # DUO: Cortex-A Specific Changes
     if name == 'cpsr':
         name = 'cc_dep1'
 
     return name
 
 def leave_reg_untainted(name):
+    return name in ['itstate', 'cc_op']
+
+# leave the ARM flag registers untaint
+def leave_reg_untainted_extend(name):
     return name in ['itstate', 'cc_op']

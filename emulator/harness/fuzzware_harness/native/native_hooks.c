@@ -364,8 +364,21 @@ void hook_mmio_access(uc_engine *uc, uc_mem_type type,
     latest_mmio_fuzz_access_index = fuzz_cursor;
 
     uc_reg_read(uc, UC_ARM_REG_PC, &pc);
-
+    // DUO: Tegra Specific Changes
+    // printf("hook_mmio_access, current pc is %x\n", pc);
+    // hard code the pc that allows the dma access
+    // if(addr >= 0x40003000 && addr <= 0x40004000) {
+    //     if(pc > 0x10785a || pc < 0x10767c)
+    //         return;
+    //     // specifically deal with access to 0x40002B3C (response_descriptor_ptr), make sure it is pointing to a valid address
+    //     if(addr == 0x40002B3C) {
+    //         uc_mem_write(uc, 0x40002B3C, 0x40000000, 4);
+    //         return;
+    //     }
+    // }
+    
     // TODO: optimize this lookup
+    // DUO: ignored_addresses是passthrough model的
     for (int i = 0; i < num_ignored_addresses; ++i)
     {
         if(addr == ignored_addresses[i] && (ignored_address_pcs[i] == MMIO_HOOK_PC_ALL_ACCESS_SITES || ignored_address_pcs[i] == pc)) {
@@ -402,6 +415,13 @@ void hook_mmio_access(uc_engine *uc, uc_mem_type type,
     printf(", value: 0x%lx\n", val); fflush(stdout);
     #endif
     uc_mem_write(uc, addr, (uint8_t *)&val, size);
+
+    // DUO: Tegra Specific Changes
+    // if(addr == 0x40003970 + 14 || addr == 0x40003970 + 15) {
+    //     uint8_t rec_val;
+    //     uc_mem_read(uc, addr, (uint8_t *)&rec_val, size); 
+    //     printf("addr: %x, rec_val: %d\n", addr, rec_val);
+    // }
 
     out:
 
@@ -832,8 +852,16 @@ static inline int run_single(uc_engine *uc) {
 
     uc_reg_read(uc, UC_ARM_REG_PC, &pc);
 
+    uint32_t cpsr_val; 
+    uc_reg_read(uc, UC_ARM_REG_CPSR, &cpsr_val);
+
     // status = uc_emu_start(uc, pc | 1, 0, 0, 0);
-    status = uc_emu_start(uc, pc, 0, 0, 0);
+    if (cpsr_val & 0x20) {
+        status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+    }
+    else {
+        status = uc_emu_start(uc, pc, 0, 0, 0);
+    }
 
     if(custom_exit_reason != UC_ERR_OK) {
         status = custom_exit_reason;
@@ -1114,6 +1142,8 @@ uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
             //     puts("[ERROR] Could not execute the first some steps");
             //     exit(-1);
             // }
+
+            // DUO: pc仍旧是从0x100000开始的
             if(uc_emu_start(uc, pc, 0, 0, 0)) {
                 puts("[ERROR] Could not execute the first some steps");
                 exit(-1);
@@ -1124,6 +1154,7 @@ uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
         // child: Run until we hit an input consumption
         is_discovery_child = 1;
         // uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+        
         uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
 
         // We do not expect to get here. The child should exit by itself in get_fuzz

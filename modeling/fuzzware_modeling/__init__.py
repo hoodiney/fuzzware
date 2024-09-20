@@ -24,12 +24,15 @@ def main():
 
     args = parser.parse_args()
 
-    if args.fuzzware_config:
-        args.fuzzware_config = load_config_deep(args.fuzzware_config)
+    # if args.fuzzware_config:
+    #     args.fuzzware_config = load_config_deep(args.fuzzware_config)
+    
+    if args.model_config_path:
+        fuzzware_config = load_config_deep(args.model_config_path)
 
     # Delay import to delay
     from .analyze_mmio import perform_analyses
-    result_lines, model_entries = perform_analyses(args.statefiles, args.fuzzware_config, is_debug=args.debug, timeout=args.timeout)
+    result_lines, model_entries = perform_analyses(args.statefiles, fuzzware_config, is_debug=args.debug, timeout=args.timeout)
 
     if args.model_config_path is not None:
         update_config_file(args.model_config_path, model_entries)
