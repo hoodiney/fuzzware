@@ -154,12 +154,6 @@ memory_map:
     base_addr: 0x7000F800
     permissions: rw-
     size: 0x800
-  # usb_buf1 and usb_buf2
-  # mmio_dma_usb_buf:
-  #   overlay: true
-  #   base_addr: 0x40005000
-    # permissions: rw-
-    # size: 0x8000
   mmio_g_usbd_reqp:
     overlay: true
     base_addr: 0x40003000
@@ -180,6 +174,9 @@ boot:
     - 0x00101328
   # Address at which the firmware is considered booted (successfully or unsuccessfully based on the previous config attributes)
   target: 0x00102896
+
+exit_at:
+    try_load_from_rcm_return: 0x102522
 # This configuration is used to derive a firmware state which is considered to be booted successfully and continue fuzzing from here
 handlers:
   sub_102CEE:
@@ -207,6 +204,15 @@ handlers:
     addr: 0x1023fc
   memset:
     addr: 0x104344
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.memset
   skip_0x107848:
     addr: 0x107848
     handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.skip_0x107848
+  pmc_scratch0_bittest:
+    addr: 0x1023be
+    handler: fuzzware_harness.user_hooks.tegra.tegra_handlers.pmc_scratch0_bittest  
+  # bypass security check
+  sub_10256C:
+    addr: 0x10256C
+  sub_102AEE:
+    addr: 0x102AEE

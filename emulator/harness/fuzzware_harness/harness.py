@@ -400,8 +400,7 @@ def main():
         args.debug = True
 
     uc = configure_unicorn(args)
-    # DUO: 设置FUSE_SECURITY_MODE为1, 以进入try_load_from_rcm
-    uc.mem_write(0x7000F9A0, bytes([1]))
+    
     # Add the hook for debugging, tracing every pc executed
 
     tegra_func_names = {}
@@ -420,36 +419,24 @@ def main():
             print(f"Executing at {tegra_func_names[address]} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
         else:
             print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
-        # if address == 0x10253c:
-        #     import ipdb; ipdb.set_trace()
         # set the negative flag (cpsr[31]) to 1 to jump out of function sub_102D1E, otherwise would fall into
         # exception handling
         if address & ~1 == 0x102d7e:
             uc.reg_write(UC_ARM_REG_CPSR, cpsr | 0x80000000)
 
+
     # if args.debug:
-    uc.hook_add(UC_HOOK_CODE, hook_code)
+    # uc.hook_add(UC_HOOK_CODE, hook_code)
     # TODO: 在config.yml里添加初始化某些内存内容的逻辑, 可以设置一个初始化函数来执行
     uc.mem_write(0x40002990, 0x40005000.to_bytes(4, byteorder='little'))
     uc.mem_write(0x40002994, 0x40009000.to_bytes(4, byteorder='little'))
-
-    # NOTE: unicorn对delay_us的第一条指令的反汇编是错的
-    def g_usb_req_0x10_read_handler(uc, access, address, size, value, user_data):
-        pc = uc.reg_read(UC_ARM_REG_PC)
-        # 0x40003980是g_usb_req+0x10
-        if address == 0x40003980:
-            if pc in [0x107912, 0x107913]: 
-                uc.mem_write(address, b'\x01' * size)
-
-    uc.hook_add(UC_HOOK_MEM_READ, g_usb_req_0x10_read_handler)
-
-    def inspect_mem(uc, access, address, size, value, user_data):
-        if address & ~1 == 0x40002B3C:
-            content = uc.mem_read(0x40002B3C, 4)[::-1].hex()
-            pc = uc.reg_read(UC_ARM_REG_PC)
-            print(f"LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL pc {pc:#x}, response_descriptor_ptr {content}, access {access}, value {value:#x}") 
-    # uc.hook_add(UC_HOOK_MEM_READ | UC_HOOK_MEM_WRITE, inspect_mem)
-
+    # set g_rcm_op_mode to RCM_OP_MODE_UNK
+    uc.mem_write(0x40002D30, 0x0.to_bytes(4, byteorder='little'))
+    # set second_rcm_attempt to none zero   
+    uc.mem_write(0x40002E55, 0x1.to_bytes(1, byteorder='little'))
+    # DUO: 设置FUSE_SECURITY_MODE为1, 以进入try_load_from_rcm
+    uc.mem_write(0x7000F9A0, bytes([1]))
+    
     globs.uc = uc
     print(f"--------------------------- cpsr in the beginning is {hex(uc.reg_read(UC_ARM_REG_CPSR))} ---------------------------")
 

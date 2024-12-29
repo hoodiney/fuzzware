@@ -364,19 +364,12 @@ void hook_mmio_access(uc_engine *uc, uc_mem_type type,
     latest_mmio_fuzz_access_index = fuzz_cursor;
 
     uc_reg_read(uc, UC_ARM_REG_PC, &pc);
-    // DUO: Tegra Specific Changes
-    // printf("hook_mmio_access, current pc is %x\n", pc);
-    // hard code the pc that allows the dma access
-    // if(addr >= 0x40003000 && addr <= 0x40004000) {
-    //     if(pc > 0x10785a || pc < 0x10767c)
-    //         return;
-    //     // specifically deal with access to 0x40002B3C (response_descriptor_ptr), make sure it is pointing to a valid address
-    //     if(addr == 0x40002B3C) {
-    //         uc_mem_write(uc, 0x40002B3C, 0x40000000, 4);
-    //         return;
-    //     }
-    // }
-    
+    // Tegra Specific Changes: hard code the pc that allows the dma access to only usbd::handle_ep0_control_transfer
+    if(addr >= 0x40003000 && addr <= 0x40004000) {
+        if(pc > 0x10785a || pc < 0x10767c)
+            return;
+    }
+
     // TODO: optimize this lookup
     // DUO: ignored_addresses是passthrough model的
     for (int i = 0; i < num_ignored_addresses; ++i)
@@ -416,12 +409,6 @@ void hook_mmio_access(uc_engine *uc, uc_mem_type type,
     #endif
     uc_mem_write(uc, addr, (uint8_t *)&val, size);
 
-    // DUO: Tegra Specific Changes
-    // if(addr == 0x40003970 + 14 || addr == 0x40003970 + 15) {
-    //     uint8_t rec_val;
-    //     uc_mem_read(uc, addr, (uint8_t *)&rec_val, size); 
-    //     printf("addr: %x, rec_val: %d\n", addr, rec_val);
-    // }
 
     out:
 

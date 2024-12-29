@@ -29,3 +29,6 @@ def memset(uc):
 
 def skip_0x107848(uc):
     uc.reg_write(UC_ARM_REG_PC, 0x107857)
+
+def pmc_scratch0_bittest(uc):
+    uc.reg_write(UC_ARM_REG_R0, 0)
