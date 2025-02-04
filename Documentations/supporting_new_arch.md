@@ -1,6 +1,6 @@
 # 1. Notes for supporting new architectures
-In this section we will talk about the aspects worth noting when considering utilizing Fuzzware to emulate firmware on a new architecture. The notes recorded in this documentation may not be complete. 
-## 1.1 ISA support
+In this section we will talk about how we partly supported the Cortex-A architecture. The user can use this documentation as a guidance if they want to support other architectures. 
+## 1.1 Basic ISA support
 To set up the correct ISA, several spots need to be modified.
 ### emulator/harness/fuzzware_harness/harness.py
 **configure_unicorn()**
@@ -42,13 +42,55 @@ if args.dump_state_filename is not None:
 ```
 The `snapshot` needs to be specified for each different architecture. The recorded snapshots are loaded into Angr and used for MMIO modeling.
 
+### emulator/harness/fuzzware_harness/tracing/snapshot_extend.py
+The `snapshot_extend.py` is copied and modified based on `emulator/harness/fuzzware_harness/tracing/snapshot.py`
+**uc_reg_consts**
+The user needs to make sure to specify the correct Unicorn variables for the registers of the new architecture.
+
+**dump_state()** 
+```
+def dump_state(filename, regs, content_chunks):
+    from intelhex import IntelHex
+    ih = IntelHex()
+
+    for base_addr, contents in content_chunks.items():
+        ih.puts(base_addr, contents)
+
+    with open(filename, "w") as f:
+
+        f.write(
+"""r0=0x{:x}
+r1=0x{:x}
+r2=0x{:x}
+r3=0x{:x}
+r4=0x{:x}
+r5=0x{:x}
+r6=0x{:x}
+r7=0x{:x}
+r8=0x{:x}
+r9=0x{:x}
+r10=0x{:x}
+r11=0x{:x}
+r12=0x{:x}
+lr=0x{:x}
+pc=0x{:x}
+sp=0x{:x}
+xpsr=0x{:x}
+```
+This function dumps the state into a snapshot file, which will later be used as input for Angr to reload the firmware state. The user needs to make sure to set up the correct register configuration.
+
+**mem_hook_dump_state_after_mmio_read()**
+This function is a callback function triggered when an MMIO access happens. It checks whether a state dump has been performed for the current (pc, address) pair. The developer needs to specify the correct Unicorn PC variable for the new architecture.
+
+**mem_hook_record_regs_before_mmio_read()**
+This function collects the register information for the snapshot. The developer needs to specify the correct Unicorn PC variable for the new architecture.
+
+
 ### emulator/harness/fuzzware_harness/sparkle.py
 The `sparkle.py` helps print out the value of Unicorn registers and memory content. The registers need to be modified according to the new architecture.
 
+### emulator/harness/fuzzware_harness/native/native_hooks.c
 
-
-
-
-## 1.2 ISA support -- Modeling
-
-# 2. How we partly supported Cortex-A
+## 1.2 Interrupts
+### emulator/harness/fuzzware_harness/globs.py
+This file specifies some parameters used for the interrupt configurations.
