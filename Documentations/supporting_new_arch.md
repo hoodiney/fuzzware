@@ -90,6 +90,53 @@ This function collects the register information for the snapshot. The developer 
 The `sparkle.py` helps print out the value of Unicorn registers and memory content. The registers need to be modified according to the new architecture.
 
 ### emulator/harness/fuzzware_harness/native/native_hooks.c
+**run_single()**
+```
+int status;
+uint64_t pc = 0;
+int sig = -1;
+
+uc_reg_read(uc, UC_ARM_REG_PC, &pc);
+
+uint32_t cpsr_val; 
+uc_reg_read(uc, UC_ARM_REG_CPSR, &cpsr_val);
+
+if (cpsr_val & 0x20) {
+    status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+}
+else {
+    status = uc_emu_start(uc, pc, 0, 0, 0);
+}
+...
+```
+We add the check for CPSR register value to determine if the current execution needs to be performed with the thumb bit set. 
+
+
+**emulate()**
+```
+...
+if(required_ticks > 2) {
+    // Set up a timer that will make use stop after executing the prefix
+    set_timer_reload_val(instr_limit_timer_id, required_ticks-2);
+
+    // Execute the prefix
+    // if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
+    //     puts("[ERROR] Could not execute the first some steps");
+    //     exit(-1);
+    // }
+
+    if(uc_emu_start(uc, pc, 0, 0, 0)) {
+        puts("[ERROR] Could not execute the first some steps");
+        exit(-1);
+    }
+}
+...
+// uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+        
+uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
+...
+```
+Ensure the correct execution without thumb bit for Cortex-A.
 
 ## 1.2 Interrupts
 ### emulator/harness/fuzzware_harness/globs.py
