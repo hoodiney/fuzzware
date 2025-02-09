@@ -94,7 +94,7 @@ static int get_group_prio(int raw_prio) {
 
 // B1.5.4
 static int get_boosted_prio(int raw_prio) {
-    // GET_PRIMASK()为1代表屏蔽普通中断
+    // if GET_PRIMASK() equals 1, it means the IRQ should be masked.
     if(GET_PRIMASK()
     #ifdef FORCE_SVC_ACTIVATION
         && nvic.pending_irq != EXCEPTION_NO_SVC
@@ -552,7 +552,7 @@ static uint32_t calc_icsr() {
     return res;
 }
 
-// DUO: 访问SCS区域, 包含NVIC, systick等
+// Accessing the SCS region, including NVIC, systick, etc.
 void hook_sysctl_mmio_read(uc_engine *uc, uc_mem_type type,
                       uint64_t addr, int size, int64_t value, void *user_data) {
     #ifdef DEBUG_NVIC
@@ -807,7 +807,6 @@ void PushStack(uc_engine *uc, bool skip_instruction) {
     print_state(uc);
     #endif
 
-    // DUO: 不区分MSP和PSP, 使用现有的栈
     /*
      * Push the pre-exception register stack to the stack.
      * We do not deal with SP_process vs. SP_main here, though.
@@ -824,7 +823,7 @@ void PushStack(uc_engine *uc, bool skip_instruction) {
 
     // Read the registers which are to be pushed afterwards
 
-    // DUO: 读取r0, r1, r2, r3, r12, lr, pc_retaddr, xpsr_retspr, sp;
+    // Reading r0, r1, r2, r3, r12, lr, pc_retaddr, xpsr_retspr, sp;
     if((err = uc_reg_read_batch(uc, &saved_reg_ids[0], (void **)(&saved_reg_ptrs[0]), NUM_SAVED_REGS)) != UC_ERR_OK) {
         if(do_print_exit_info) {
             puts("[NVIC ERROR] PushStack: Failed reading registers\n");
@@ -833,7 +832,6 @@ void PushStack(uc_engine *uc, bool skip_instruction) {
         force_crash(uc, err);
     }
 
-    // DUO: 是否跳过下一条指令, 此处需要区分是thumb还是thumb-2
     if(skip_instruction) {
         uint64_t insn = 0;
         #ifdef DEBUG_NVIC
@@ -858,7 +856,6 @@ void PushStack(uc_engine *uc, bool skip_instruction) {
     saved_regs.xpsr_retspr |= (frameptralign << 9);
 
     // Push the context frame itself
-    // DUO: 保存了除了之前的sp以外的所有记录的register
     if((err = uc_mem_write(uc, frameptr,  &saved_regs, (NUM_SAVED_REGS - 1)*sizeof(saved_regs.r0))) != UC_ERR_OK){
         if(do_print_exit_info) {
             printf("[NVIC] PopStack: writing saved context frame during interrupt entry failed (INVALID WRITE, frameptr= 0x%08x)\n", frameptr);
@@ -972,7 +969,6 @@ static void nvic_exception_return_hook(uc_engine *uc, uint64_t address, uint32_t
     #endif
 }
 
-// DUO: 这个只用来处理svc
 static void handler_svc(uc_engine *uc, uint32_t intno, void *user_data) {
     #ifdef DEBUG_NVIC
     uint32_t pc;
@@ -1009,7 +1005,6 @@ static void handler_svc(uc_engine *uc, uint32_t intno, void *user_data) {
 
 // B1.5.6
 static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instruction) {
-    // DUO: NVIC_INTERRUPT_ENTRY_LR_BASE的值是0xFFFFFFF1, 从isr返回时会返回到线程模式, 返回的stack是MSP
     uint32_t new_lr = NVIC_INTERRUPT_ENTRY_LR_BASE;
 
     #ifdef DEBUG_NVIC
@@ -1028,7 +1023,6 @@ static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instru
         }
     }
 
-    // DUO: tail chaining的意思是不需要重新进行isr的state saving和poping, 直接handle下一个isr
     if(!is_tail_chained) {
         /*
          * We are interrupting execution. We are either preempting an existing interrupt
@@ -1041,14 +1035,10 @@ static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instru
         * We need to handle the situation where we come from thread mode (no exception being handled),
         * and use the SP_process stack instead of the SP_main stack (which is always used in handler mode).
         */
-        // DUO: 区分栈帧是MSP还是PSP的目的在于区分是来自isr还是正常执行  
-        // DUO: NVIC_NONE_ACTIVE也用来区分这个 
         if(nvic.active_irq == NVIC_NONE_ACTIVE) {
             // We are coming from Thread mode in case we are not tail-chained and had no previously active IRQ
-            // DUO: 这里|=8意为将原本的NVIC_INTERRUPT_ENTRY_LR_BASE变为0xfffffff9u, 返回到线程模式, 使用MSP
             new_lr |= NVIC_INTERRUPT_ENTRY_LR_THREADMODE_FLAG;
 
-            // DUO: unicorn中的UC_ARM_REG_CURR_SP_MODE_IS_PSP可以查询当前的stack是否是PSP
             if(GET_CURR_SP_MODE_IS_PSP()) {
                 // We are coming from Thread Mode which uses SP_process. Switch it to SP_main
                 uint32_t new_SPSEL_not_psp = 0;
@@ -1057,13 +1047,11 @@ static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instru
                 uc_reg_read(uc, UC_ARM_REG_OTHER_SP, &SP_main);
 
                 // Back up SP_process
-                // DUO: 交换当前PSP和MSP的值
                 uc_reg_write(uc, UC_ARM_REG_OTHER_SP, &SP_process);
                 uc_reg_write(uc, UC_ARM_REG_SP, &SP_main);
 
                 // Switch the CPU state to indicate the new SPSEL state
 
-                // DUO: UC_ARM_REG_SPSEL=0是用MSP, 1是用PSP, SPSEL是sp select
                 // 1. In pstate register
                 uc_reg_write(uc, UC_ARM_REG_SPSEL, &new_SPSEL_not_psp);
                 // 2. In cached spsel field
@@ -1104,7 +1092,7 @@ static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instru
     isr_xpsr &= ~(xPSR_ICI_IT_2_Msk | xPSR_ICI_IT_1_Msk);
     // Set active interrupt
     isr_xpsr &= ~xPSR_ISR_Msk;
-    // DUO: xpsr的[5:0]是exception number
+    // xpsr[5:0] is the exception number
     isr_xpsr |= ExceptionNumber;
     uc_reg_write(uc, UC_ARM_REG_XPSR, &isr_xpsr);
 
