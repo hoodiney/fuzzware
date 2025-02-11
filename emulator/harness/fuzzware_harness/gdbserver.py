@@ -72,6 +72,9 @@ unicorn_registers = {'r0': UC_ARM_REG_R0, 'r1': UC_ARM_REG_R1, 'r2': UC_ARM_REG_
                      'pc': UC_ARM_REG_PC, 'cpsr': UC_ARM_REG_CPSR}
 
 
+'''
+"si": In RSP, "si" is actually implemented using "Z0,addr,size" and then vCont.
+'''
 class GDBServer(Thread):
 
     def __init__(self, uc, port=3333):
@@ -111,8 +114,9 @@ class GDBServer(Thread):
             'M' : self.mem_write,
             'c' : self.cont,
             'C' : self.cont, #cond with signal, we don't care
-            's' : self.step,
-            'S' : self.step_signal,
+            's' : self.step_into,
+            # 's' : self.step,
+            # 'S' : self.step_signal,
             'Z' : self.insert_breakpoint,
             'z' : self.remove_breakpoint,
             'D' : self.detach,
@@ -161,6 +165,17 @@ class GDBServer(Thread):
     def not_implemented(self, pkt):
         logger.critical(f'Received not implemented packet: {pkt}')
         return b''
+    
+    # def query_handler_si(self):
+    #     return b'T05'
+
+    # def query_resp(self, cmd):
+    #     resp_dict = {
+    #         b"si": self.query_handler_si
+    #     }
+    #     handler = resp_dict[cmd]
+    #     resp = handler()
+    #     self.send_packet(resp)
 
     def query(self, pkt):
         if pkt[1:].startswith(b'Supported') is True:
@@ -194,11 +209,12 @@ class GDBServer(Thread):
                 cmd = re.match('qRcmd,(.*)',pkt.decode())[1]
                 cmd = binascii.a2b_hex(cmd)
                 logger.debug(f'Receiced cmd: {cmd}')
-                res = ast.literal_eval(cmd)
+                # self.query_resp(cmd)
+                # res = ast.literal_eval(cmd)
 
-                self.send_packet(b'O' \
-                            + binascii.b2a_hex(repr(res).encode()) \
-                            + b'0a')
+                # self.send_packet(b'O' \
+                #             + binascii.b2a_hex(repr(res).encode()) \
+                #             + b'0a')
                 return b'OK'
 
             except Exception as e:
@@ -217,6 +233,7 @@ class GDBServer(Thread):
 
         return b''
 
+    # handles cmd starting with "v"
     def multi_letter_cmd(self, pkt):
         if pkt[1:].startswith(b'vMustReplyEmpty') is True:
             return b''
@@ -283,34 +300,50 @@ class GDBServer(Thread):
     def cont(self, pkt):
         self.running.set()
         return b'OK'
+    
+    def step_into(self, pkt):
+        # First check if running 4 bytes or 2 bytes instruction
+        curr_pc = self.unicorn.reg_read(UC_ARM_REG_PC)
+        instr = self.unicorn.mem_read(curr_pc, 2)
+        # first_halfword = instr[0] | (instr[1] << 8)
+        # if first_halfword & 0xF800 == 0xE800 or first_halfword & 0xF800 == 0xF800:
+        #     self.unicorn.add_breakpoint(curr_pc + 4)
+        # else:
+        #     self.unicorn.add_breakpoint(curr_pc + 2)
+        # self.unicorn.add_breakpoint(curr_pc + 2)
+        self.unicorn.add_breakpoint(None, 1)
+        self.running.set()
+        return b'OK'
 
-    def step(self, pkt):
-        self.unicorn.step()
-        return b'S00'
+    # def step(self, pkt):
+    #     self.unicorn.step()
+    #     return b'S00'
 
-    def step_signal(self, pkt):
-        self.unicorn.step()
-        return pkt[1:]
+    # def step_signal(self, pkt):
+    #     self.unicorn.step()
+    #     return pkt[1:]
 
     def insert_breakpoint(self, pkt):
         addr, _ = match_hex('Z0,(.*),(.*)', pkt.decode())
-        bpno = self.unicorn.add_breakpoint(addr)
-        self.bps[bpno] = addr
+        # bpno = self.unicorn.add_breakpoint(addr, None)
+        self.unicorn.add_breakpoint(addr, None)
+        # self.bps[bpno] = addr
         return b'OK'
 
     def remove_breakpoint(self, pkt):
         addr, _ = match_hex('z0,(.*),(.*)', pkt.decode())
-        matches = []
-        for n, a in self.bps.items():
-            if a == addr:
-                matches.append(n)
-        if len(matches) == 0:
-            logger.warning(f'GDB tried to remove non existing bp for {addr}')
-            logger.info(self.bps)
-            return b'E00'
+        # matches = []
+        # for n, a in self.bps.items():
+        #     if a == addr:
+        #         matches.append(n)
+        # if len(matches) == 0:
+        #     logger.warning(f'GDB tried to remove non existing bp for {addr}')
+        #     logger.info(self.bps)
+        #     return b'E00'
 
-        self.unicorn.del_breakpoint(n)
-        self.bps.pop(n)
+        self.unicorn.del_breakpoint(addr)
+        # for n in matches:
+        #     self.bps.pop(n)
         return b'OK'
 
     def detach(self, pkt):

@@ -6,6 +6,7 @@ from collections import defaultdict
 import archinfo
 import ipdb
 import unicorn
+import threading
 
 from . import util
 
@@ -172,29 +173,63 @@ def break_it(uc):
 
         ipdb.set_trace()
 
+# def add_breakpoint(self, addr):
+#     global breakpoints
+#     breakpoints.append(addr)
+#     return breakpoints.index(addr)
 
-def add_breakpoint(self, addr):
-    global breakpoints
-    breakpoints.append(addr)
-    return breakpoints.index(addr)
+def add_breakpoint(self, addr, times):
+    global breakpoints, si_times, bp_lock
+    # if the bp is permanent, times is None
+    # if the bp is represented as "next 1/few instructions", addr is -1
+    with bp_lock:
+        if addr is not None:
+            breakpoints.add(addr)
+        else:
+            si_times = times
+        print(f"after adding, current breakpoints list {[hex(bp) for bp in list(breakpoints)]}")
+        
+# remove breakpoint at addr  
+def del_breakpoint(self, addr):
+    global breakpoints, bp_lock
+    with bp_lock:
+        if addr in breakpoints:
+            breakpoints.remove(addr)
+        print(f"after deletion, current breakpoints list {[hex(bp) for bp in list(breakpoints)]}")
 
+breakpoints = set() # store the permanent bps
+si_times = 0 # store the times for step into
 
-def del_breakpoint(self, handle):
-    global breakpoints
-    if handle in breakpoints:
-        breakpoints[breakpoints.index(handle)] = -1
-    else:
-        breakpoints[handle] = -1
+# def breakpoint_handler(uc, address, size=0, user_data=None):
+#     global breakpoints
+#     # print(f"the debuggee is at address {hex(address)}")
+#     if address in breakpoints:
+#         print("[*] Breakpoint hit at %#08x" % address)
+#         break_it(uc)
+#     # When starting up the gdbserver, stop at the beginning
+#     if uc.gdb is not None and not uc.gdb.running.is_set():
+#         print("[*] Execution interrupted at %#08x" % address)
+#         break_it(uc)
 
+# Use this lock to ensure the accesses to breakpoints and si_times is thread-safe 
+bp_lock = threading.Lock()
 
-breakpoints = []
 def breakpoint_handler(uc, address, size=0, user_data=None):
-    global breakpoints
-    if address in breakpoints:
-        print("[*] Breakpoint hit at %#08x" % address)
-        break_it(uc)
-    if uc.gdb is not None and not uc.gdb.running.is_set():
-        print("[*] Execution interrupted at %#08x" % address)
+    global breakpoints, si_times, bp_lock
+    # print(f"the debuggee is at address {hex(address)}")
+    break_it_flag = False
+    with bp_lock:
+        print(f"current breakpoints list {[hex(bp) for bp in breakpoints]}")
+        if address in breakpoints or si_times > 0:
+            print("[*] Breakpoint hit at %#08x" % address)
+            if si_times > 0:
+                si_times -= 1
+            break_it_flag = True
+        # When starting up the gdbserver, stop at the beginning
+        if uc.gdb is not None and not uc.gdb.running.is_set():
+            print("[*] Execution interrupted at %#08x" % address)
+            break_it_flag = True
+    if break_it_flag:
         break_it(uc)
 
 def add_sparkles(uc, args):
@@ -206,14 +241,14 @@ def add_sparkles(uc, args):
     uc.add_breakpoint = types.MethodType(add_breakpoint,uc)
     uc.b = types.MethodType(add_breakpoint,uc)
     uc.del_breakpoint = types.MethodType(del_breakpoint, uc)
-    if args.breakpoints:
+    if args.breakpoints or args.gdb_port:
         print(f"args.breakpoints are {args.breakpoints}")
         for bp in args.breakpoints:
             try:
                 bp_addr = int(bp, 0)
             except ValueError:
                 bp_addr = util.parse_address_value(uc.symbols, bp)
-            breakpoints.append(bp_addr & ~1)
+            breakpoints.add(bp_addr & ~1)
         # uc.hook_add(unicorn.UC_HOOK_BLOCK_UNCONDITIONAL, breakpoint_handler)
         uc.hook_add(unicorn.UC_HOOK_CODE, breakpoint_handler)
     uc.arch = archinfo.ArchARMCortexM()
