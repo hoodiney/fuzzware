@@ -40,7 +40,7 @@ class GDBServer(Thread):
 An example script of using the GDBServer for debugging is shown below.
 
 ```
-fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -g 1234 -b 0x001147A4 -v --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
+fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -g 1234 -v --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
 ```
 
 Using another terminal for the same docker container, the user can use `gdb-multiarch` to attach to the server and send the commands using the command line tool.
