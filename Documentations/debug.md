@@ -15,6 +15,14 @@ uc.hook_add(UC_HOOK_CODE, hook_code)
 
 With the `uc` instance passed to the hook functions, we can inspect the memory and register content, control the execution and so on. Besides `UC_HOOK_CODE`, Unicorn also offers other hook types. For example, we can use `UC_HOOK_BLOCK` for more coarse grained execution inspection (hook is only triggered for each basic block). More hook types are available in Unicorn's documentation and source code.
 
+Moreover, inside the hook functions, we can use `ipdb` to inspect the Unicorn execution. The following code is an example that sets ipdb traces whenever encountering the three addresses: `Addr_A`, `Addr_B`, and `Addr_C`:
+
+```
+def hook_code(uc, address, size, user_data):
+    if address in [Addr_A, Addr_B, Addr_C]:
+        import ipdb; ipdb.set_trace()
+```
+
 # GDBServer
 It would be nice to dynamically analyze the execution during firmware emulation. Fuzzware partly support the functionality of a GDBServer. Here we detail its implementation and introduce how to use it. Note that this feature is not fully supported, the more stable approach is through the Unicorn hooks. We manage to fix its support for continuing, stepping, and adding/deleting breakpoints. The GDBServer can be connected both with command line and IDA Pro.
 
@@ -32,7 +40,7 @@ class GDBServer(Thread):
 An example script of using the GDBServer for debugging is shown below.
 
 ```
-fuzzware emu -c /home/user/fuzzware_repo/tegra/fuzzware-project/main001/config.yml -g 1234 -b 0x001147A4 -v /home/user/fuzzware_repo/tegra/fuzzware-project/main001/fuzzers/fuzzer1/queue/id:000014,src:000000,op:havoc,rep:32
+fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -g 1234 -b 0x001147A4 -v --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
 ```
 
 Using another terminal for the same docker container, the user can use `gdb-multiarch` to attach to the server and send the commands using the command line tool.
@@ -41,6 +49,7 @@ Using another terminal for the same docker container, the user can use `gdb-mult
 gdb-multiarch --ex "target remote :1234"; pkill -9 fuzzware; stty sane
 ```
 
+Besides, we can also connect IDA Pro to this server. The user needs to configure in IDA Pro's `Debugger -> Process options`
 # Others
 ## MMIO modeling errors
 During fuzzing, sometimes there can be errors during MMIO modeling. Through the log files in `.../fuzzware-project/logs/worker_modeling.log` you can check if there is anything wrong with the modeling process. 
