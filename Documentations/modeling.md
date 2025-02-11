@@ -69,7 +69,7 @@ Overall, Fuzzware's modeling implementation follows the rules specified in `mode
 
 In this part, we mainly introduce some of the implementation details that are related to Angr usage. We will skip the parts that are straightforward or well-documented. 
 ### modeling/fuzzware_modeling/analyze_mmio.py
-**setup_analysis()**
+#### setup_analysis()
 ```
 initial_state.inspect.b('reg_write', when=angr.BP_BEFORE, action=inspect_bp_trace_liveness_reg)
 ```
@@ -86,11 +86,11 @@ initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
 The `liveness` plugin is for helping Angr to track the liveness of the variables. We will go into more details in file `modeling/fuzzware_modeling/liveness_plugin.py`
 
 ### modeling/fuzzware_modeling/arch_specific/arm_thumb_quirks.py
-**model_arch_specific()**
+#### model_arch_specific()
 This function takes the first instruction of the initial state and checks if it is a `strex` instruction.
 
 ### modeling/fuzzware_modeling/base_state_snapshot.py
-**from_state_file()**
+#### from_state_file()
 This function loads the content of the state file to prepare for Angr's analysis. 
 ```
 # apply registers to state
