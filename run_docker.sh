@@ -83,12 +83,12 @@ fi
 if [[ -z "$IMAGE" ]]; then
     docker run \
         -it \
-        -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint /home/user/fuzzware_repo/docker_dbg_entry.sh\
+        -p 1234:1234 -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint /home/user/fuzzware_repo/docker_dbg_entry.sh\
         "fuzzware:latest" $cmd
 else
     echo "Runing docker with image $IMAGE"
     docker run \
         -it \
-        -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint /home/user/fuzzware_repo/docker_dbg_entry.sh\
+        -p 1234:1234 -e 'TERM=xterm-256color' --privileged --volume ${PWD}:/home/user/fuzzware_repo --entrypoint /home/user/fuzzware_repo/docker_dbg_entry.sh\
         "fuzzware:$IMAGE" $cmd
 fi
