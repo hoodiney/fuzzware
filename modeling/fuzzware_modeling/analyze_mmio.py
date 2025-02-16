@@ -86,7 +86,7 @@ def setup_analysis(statefile, cfg=None):
         project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
         # project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
     # Breakpoints: MMIO handling
-    # DUO: 这个bp只是为了确认是否有漏掉的MMIO page
+    # This breakpoint is only for checking if there is any missing MMIO page.
     initial_state.globals['tmp_mmio_bp'] = initial_state.inspect.b('mem_read', when=angr.BP_BEFORE, action=inspect_bp_singleton_ensure_mmio)
     initial_state.inspect.b('mem_read', when=angr.BP_AFTER, action=inspect_bp_mmio_intercept_read_after, condition=inspect_cond_is_mmio_read)
 

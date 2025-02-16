@@ -371,7 +371,7 @@ void hook_mmio_access(uc_engine *uc, uc_mem_type type,
     }
 
     // TODO: optimize this lookup
-    // DUO: ignored_addresses是passthrough model的
+    // ignored_addresses are the passthrough models
     for (int i = 0; i < num_ignored_addresses; ++i)
     {
         if(addr == ignored_addresses[i] && (ignored_address_pcs[i] == MMIO_HOOK_PC_ALL_ACCESS_SITES || ignored_address_pcs[i] == pc)) {
@@ -1130,7 +1130,7 @@ uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
             //     exit(-1);
             // }
 
-            // DUO: pc仍旧是从0x100000开始的
+            // parent and child emulation starts with the same pc value
             if(uc_emu_start(uc, pc, 0, 0, 0)) {
                 puts("[ERROR] Could not execute the first some steps");
                 exit(-1);

@@ -1059,7 +1059,7 @@ static void ExceptionEntry(uc_engine *uc, bool is_tail_chained, bool skip_instru
 
                 // Finally: Indicate that we switched in the LR value
                 
-                // DUO: 把new_lr变为0xfffffffdu, 返回到处理器模式，返回的stack是PSP
+                // change new_lr into 0xfffffffdu, return to thread mode
                 new_lr |= NVIC_INTERRUPT_ENTRY_LR_PSPSWITCH_FLAG;
             }
         }

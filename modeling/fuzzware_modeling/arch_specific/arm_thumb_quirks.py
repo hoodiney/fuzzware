@@ -248,7 +248,7 @@ def add_special_initstate_reg_vals_extend(initial_state, regs):
     # initial_state.regs.geflag2 = (cpsr_value >> 18) & 1
     # initial_state.regs.geflag3 = (cpsr_value >> 19) & 1
 
-    # DUO: 理解为, 当cc_op为0时 (即CC_OP_COPY), 会直接copy cc_dep1的值作为当前的状态
+    # When cc_op is 0, (i.e., CC_OP_COPY), the current state value equals cc_dep1.
     regs['cc_op'] = ARMG_CC_OP_COPY
 
     # Also try figuring out the current itstate value
