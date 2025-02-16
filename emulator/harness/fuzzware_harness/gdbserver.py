@@ -277,6 +277,7 @@ class GDBServer(Thread):
         try:
             addr, n = match_hex('m(.*),(.*)', pkt.decode())
 
+            logger.debug(f'mem_read: {hex(addr)} for {n} bytes')
             val = self.unicorn.mem_read(addr, n).hex()
             return val.encode()
 
@@ -348,10 +349,10 @@ class GDBServer(Thread):
 
     def detach(self, pkt):
         logger.info("Exiting GDB server")
-        if not self.target.state & TargetStates.EXITED:
-            for bpno in self.bps.items():
-                self.target.remove_breakpoint(bpno)
-            self.target.cont()
+        # if not self.target.state & TargetStates.EXITED:
+        #     for bpno in self.bps.items():
+        #         self.target.remove_breakpoint(bpno)
+        #     self.target.cont()
         if self.conn._closed is False:
             self.send_packet(b'OK')
             self.conn.close()
