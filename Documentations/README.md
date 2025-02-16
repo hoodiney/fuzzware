@@ -3,8 +3,8 @@ In this folder we prepared several documentations to illustrate the details of s
 
 | File                   | Content                                                                                                   |
 |------------------------|-----------------------------------------------------------------------------------------------------------|
-| modeling.md            | How Fuzzware implements the modeling logic.                                                                |
-| handler.md             | How Fuzzware implements the handler logic.                                                                 |
-| interrupts.md          | How Fuzzware implements the interrupts logic.
+| modeling.md            | How Fuzzware implements the modeling logic.                                                               |
+| handler.md             | How Fuzzware implements the handler logic.                                                                |
+| interrupts.md          | How Fuzzware implements the interrupts logic.                                                             |
 | debug.md               | How to debug while using Fuzzware for emulation and fuzzing.                                              |
 | supporting_new_arch.md | How to support Fuzzware on new architecture. Illustration of how we partly support Fuzzware for Cortex-A. |
