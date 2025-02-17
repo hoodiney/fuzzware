@@ -40,7 +40,7 @@ class GDBServer(Thread):
 An example script of using the GDBServer for debugging is shown below.
 
 ```
-fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -g 1234 -v home/user/fuzzware_repo/tegra/tegra_crash_input_example/debug_input
+fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -g 1234 -v --tegra home/user/fuzzware_repo/tegra/tegra_crash_input_example/debug_input
 ```
 
 One important note is that, once the gdbserver is used, the prefix-input feature is disabled. When debugging the crashing input that requires a prefix input, the user should concat the two inputs into one debug input.

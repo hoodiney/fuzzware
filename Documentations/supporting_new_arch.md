@@ -67,28 +67,30 @@ We add the check for CPSR register value to determine if the current execution n
 #### emulate()
 ```
 ...
-if(required_ticks > 2) {
-    // Set up a timer that will make use stop after executing the prefix
-    set_timer_reload_val(instr_limit_timer_id, required_ticks-2);
-
-    // Execute the prefix
-    // if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
-    //     puts("[ERROR] Could not execute the first some steps");
-    //     exit(-1);
-    // }
-
-    if(uc_emu_start(uc, pc, 0, 0, 0)) {
-        puts("[ERROR] Could not execute the first some steps");
-        exit(-1);
-    }
+#if defined(ARMV4T)
+if(uc_emu_start(uc, pc, 0, 0, 0)) {
+    puts("[ERROR] Could not execute the first some steps");
+    exit(-1);
 }
+#else
+if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
+    puts("[ERROR] Could not execute the first some steps");
+    exit(-1);
+}
+#endif
 ...
-// uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
-        
+#if defined(ARMV4T)
 uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
+#else 
+uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+#endif
 ...
 ```
-Ensure the correct execution without thumb bit for Cortex-A.
+Ensure the correct execution without thumb bit for Cortex-A. Here we use a macro `ARMV4T` to decide if we want to build the code for Cortex-M or the new architecture. Note that Cortex-M is the default case. The user can use the following command to rebuild the native code with specified architecture.
+
+```
+./rebuild_unicorn ARMV4T=1
+```
 
 ### emulator/harness/fuzzware_harness/sparkle.py
 The `sparkle.py` helps print out the value of Unicorn registers and memory content. The registers need to be modified according to the new architecture.
@@ -187,3 +189,25 @@ In Angr's VEX IR, `cc_dep1` is a register that stores the values related to the 
 
 ## 1.2 Interrupts
 Note that Cortex-A is supposed to use GIC (Generic Interrupt Controller), which differs from Cortex-M's NVIC (Nested Vectored Interrupt Controller). Fuzzware's implementation of NVIC is documented in `interrupts.md`. GIC is a lot more complex than NVIC with its new features such as interrupt distribution and multi-core support. If the user wants to emulate a Cortex-A firmware that only involves basic interrupt support (priority configuration, nested interrupt handling, etc.), the user can implement the GIC based on Fuzzware's NVIC implementation. Otherwise, we would recommend using Qemu (or other more advanced emulator) instead of Unicorn as the base emulator, since it has a relatively more complete architecture functionality support. We skipped the interrupt handling support for the Tegra demo. 
+
+# 2. Conditional compilation for the native code
+For the python logic, we can make the architecture selection configurable through the `arch` field in the `config.yml`. As for the native code, we need to setup the conditional compilation for each architecture. When adding the architecture support in the `emulator/harness/fuzzware_harness/native` folder, we need to firstly mark each logic with corresponding conditional compilation flags. For example:
+```
+#if defined(ARMV4T)
+if(uc_emu_start(uc, pc, 0, 0, 0)) {
+    puts("[ERROR] Could not execute the first some steps");
+    exit(-1);
+}
+#else
+if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
+    puts("[ERROR] Could not execute the first some steps");
+    exit(-1);
+}
+#endif
+```
+
+Then, we need to add the configuration in `emulator/harness/fuzzware_harness/native/Makefile`. Lastly, we need to rebuild the emulator using `rebuild_unicorn.sh`. For example:
+
+```
+./rebuild_unicorn.sh ARMV4T=1
+```

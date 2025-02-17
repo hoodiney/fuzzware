@@ -5,6 +5,18 @@ The vulnerability has been well-explained in other resources. In the following s
 
 This demo aims to serve as an example of utilizing **Fuzzware** for specific testing tasks. In the last section, we'll summarize a general guideline to tackle specific technique issues for guiding fuzzer towards your testing targets. 
 
+To use the demo, the user needs to run the following command to correctly build the emulator after entering the docker container.
+
+```
+./rebuild_unicorn ARMV4T=1 TEGRA=1
+```
+
+The command to run this demo is as follows. There is an additional parameter `--tegra` to specify some tegra specific support.
+
+```
+fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -d -v --tegra --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
+```
+
 **usbd::handle_ep0_control_transfer** 
 
 # Setup
