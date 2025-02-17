@@ -16,6 +16,15 @@ ifeq ($(DEBUG_TIMER),1)
 else
 	CFLAGS += -fpic -Wall $(INC) -g -O3
 endif
+
+ifeq ($(TEGRA),1)
+	CFLAGS += -DTEGRA
+endif
+
+ifeq ($(ARMV4T),1)
+	CFLAGS += -DARMV4T
+endif
+
 LDFLAGS += -shared -L$(LIBDIR) -lunicorn
 
 .PHONY: all clean

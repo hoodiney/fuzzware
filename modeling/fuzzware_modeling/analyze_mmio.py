@@ -80,8 +80,11 @@ def setup_analysis(statefile, cfg=None):
     if cfg is not None:
         if cfg['arch'] == 'armv4t':
             project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
-        else:
+        elif cfg['arch'] == 'cortex-m':        
             project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
+        else:
+            print("Architecture not supported in analyze_mmio.py!")
+            exit(0)
     else:
         project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
         # project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
@@ -116,8 +119,16 @@ def setup_analysis(statefile, cfg=None):
     initial_state.options.add(angr.options.TRACK_MEMORY_ACTIONS)
 
     # Register plugin to track dynamic liveness
-    # initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
-    initial_state.register_plugin('liveness', LivenessExtendPlugin(base_snapshot))
+    if cfg is not None:
+        if cfg['arch'] == 'armv4t':
+            initial_state.register_plugin('liveness', LivenessExtendPlugin(base_snapshot))
+        elif cfg['arch'] == 'cortex-m':        
+            initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+        else:
+            print("Architecture not supported in analyze_mmio.py!")
+            exit(0)
+    else:
+        initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
 
     return project, initial_state, base_snapshot
 

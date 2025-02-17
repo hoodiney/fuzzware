@@ -360,15 +360,17 @@ uint32_t fuzz_remaining() {
 void hook_mmio_access(uc_engine *uc, uc_mem_type type,
                       uint64_t addr, int size, int64_t value, void *user_data)
 {
-    uint32_t pc = 0;
     latest_mmio_fuzz_access_index = fuzz_cursor;
-
+    
+    uint32_t pc = 0;
     uc_reg_read(uc, UC_ARM_REG_PC, &pc);
+    #if defined(TEGRA) && defined(ARMV4T)
     // Tegra Specific Changes: hard code the pc that allows the dma access to only usbd::handle_ep0_control_transfer
     if(addr >= 0x40003000 && addr <= 0x40004000) {
         if(pc > 0x10785a || pc < 0x10767c)
             return;
     }
+    #endif
 
     // TODO: optimize this lookup
     // ignored_addresses are the passthrough models
@@ -1124,25 +1126,30 @@ uc_err emulate(uc_engine *uc, char *p_input_path, char *prefix_input_path) {
             // Set up a timer that will make use stop after executing the prefix
             set_timer_reload_val(instr_limit_timer_id, required_ticks-2);
 
-            // Execute the prefix
-            // if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
-            //     puts("[ERROR] Could not execute the first some steps");
-            //     exit(-1);
-            // }
-
             // parent and child emulation starts with the same pc value
+            // Execute the prefix
+            #if defined(ARMV4T)
             if(uc_emu_start(uc, pc, 0, 0, 0)) {
                 puts("[ERROR] Could not execute the first some steps");
                 exit(-1);
             }
+            #else
+            if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
+                puts("[ERROR] Could not execute the first some steps");
+                exit(-1);
+            }
+            #endif
         }
         puts("[+] Initial constant execution (including optional prefix input) done, starting input execution."); fflush(stdout);
     } else {
         // child: Run until we hit an input consumption
         is_discovery_child = 1;
-        // uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
-        
+
+        #if defined(ARMV4T)
         uc_err child_emu_status = uc_emu_start(uc, pc, 0, 0, 0);
+        #else 
+        uc_err child_emu_status = uc_emu_start(uc, pc | 1, 0, 0, 0);
+        #endif
 
         // We do not expect to get here. The child should exit by itself in get_fuzz
         printf("[ERROR] Emulation stopped using just the prefix input (%d: %s)\n", child_emu_status, uc_strerror(child_emu_status));

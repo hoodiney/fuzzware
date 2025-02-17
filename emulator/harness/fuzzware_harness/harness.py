@@ -59,7 +59,6 @@ def configure_unicorn(args):
         sys.exit(1)
 
     # Create the unicorn
-    # TODO: update here to support Cortex-A 
     arch = config.get("arch", "cortex-m") 
     if arch == "cortex-m":
         uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
@@ -329,7 +328,7 @@ def configure_unicorn(args):
     else:
         uc.gdb = None
 
-    return uc
+    return uc, arch
 
 def sym_or_addr(x):
     try:
@@ -341,7 +340,9 @@ def populate_parser(parser):
     parser.add_argument('input_file', type=str, help="Path to the file containing the mutated input to load")
     parser.add_argument('--prefix-input', dest='prefix_input_path', type=str, help="(Optional) Path to the file containing a constant input to load")
     parser.add_argument('-c', '--config', default="config.yml", help="The emulator configuration to use. Defaults to 'config.yml'")
-
+    # tegra demo
+    parser.add_argument('--tegra', default=False, action="store_true", help="If we are running the tegra demo")
+    
     # Verbosity switches
     parser.add_argument('-d', '--debug', default=False, action="store_true", help="Enables debug mode (required for -t and -M) (SLOW!)")
     parser.add_argument('-v', '--print-exit-info', default=False, action="store_true", help="Print some information about the exit reason.")
@@ -399,43 +400,44 @@ def main():
     if any(debug_flags):
         args.debug = True
 
-    uc = configure_unicorn(args)
+    uc, arch = configure_unicorn(args)
     
     # Add the hook for debugging, tracing every pc executed
 
-    tegra_func_names = {}
-    with open("./tegra_function_dump.csv") as file:
-        lines = file.readlines()
-        lines = [line[:-1] for line in lines]
-        for line in lines:
-            func_name = line.split(',')[0]
-            func_addr = line.split(',')[1]
-            tegra_func_names[int(func_addr, 16)] = func_name
+    if arch == 'armv4t' and args.tegra:
+        tegra_func_names = {}
+        with open("./tegra_function_dump.csv") as file:
+            lines = file.readlines()
+            lines = [line[:-1] for line in lines]
+            for line in lines:
+                func_name = line.split(',')[0]
+                func_addr = line.split(',')[1]
+                tegra_func_names[int(func_addr, 16)] = func_name
 
-    def hook_code(uc, address, size, user_data):
-        xpsr = uc.reg_read(UC_ARM_REG_XPSR)
-        cpsr = uc.reg_read(UC_ARM_REG_CPSR)
-        # if address in tegra_func_names:
-        #     print(f"Executing at {tegra_func_names[address]} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
-        # else:
-        #     print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
-        # set the negative flag (cpsr[31]) to 1 to jump out of function sub_102D1E, otherwise would fall into
-        # exception handling
-        if address & ~1 == 0x102d7e:
-            uc.reg_write(UC_ARM_REG_CPSR, cpsr | 0x80000000)
+        def hook_code(uc, address, size, user_data):
+            xpsr = uc.reg_read(UC_ARM_REG_XPSR)
+            cpsr = uc.reg_read(UC_ARM_REG_CPSR)
+            if args.debug:
+                if address in tegra_func_names:
+                    print(f"Executing at {tegra_func_names[address]} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
+                else:
+                    print(f"Executing at 0x{address:X} instruction size: {size}, cpsr: 0x{cpsr:X}, xpsr: 0x{xpsr:X}")
+            # set the negative flag (cpsr[31]) to 1 to jump out of function sub_102D1E, otherwise would fall into
+            # exception handling
+            if address & ~1 == 0x102d7e:
+                uc.reg_write(UC_ARM_REG_CPSR, cpsr | 0x80000000)
 
 
-    # if args.debug:
-    uc.hook_add(UC_HOOK_CODE, hook_code)
-    # TODO: 在config.yml里添加初始化某些内存内容的逻辑, 可以设置一个初始化函数来执行
-    uc.mem_write(0x40002990, 0x40005000.to_bytes(4, byteorder='little'))
-    uc.mem_write(0x40002994, 0x40009000.to_bytes(4, byteorder='little'))
-    # set g_rcm_op_mode to RCM_OP_MODE_UNK
-    uc.mem_write(0x40002D30, 0x0.to_bytes(4, byteorder='little'))
-    # set second_rcm_attempt to none zero   
-    uc.mem_write(0x40002E55, 0x1.to_bytes(1, byteorder='little'))
-    # set FUSE_SECURITY_MODE to 1, so we can enter the try_load_from_rcm function
-    uc.mem_write(0x7000F9A0, bytes([1]))
+        uc.hook_add(UC_HOOK_CODE, hook_code)
+        # TODO: 在config.yml里添加初始化某些内存内容的逻辑, 可以设置一个初始化函数来执行
+        uc.mem_write(0x40002990, 0x40005000.to_bytes(4, byteorder='little'))
+        uc.mem_write(0x40002994, 0x40009000.to_bytes(4, byteorder='little'))
+        # set g_rcm_op_mode to RCM_OP_MODE_UNK
+        uc.mem_write(0x40002D30, 0x0.to_bytes(4, byteorder='little'))
+        # set second_rcm_attempt to none zero   
+        uc.mem_write(0x40002E55, 0x1.to_bytes(1, byteorder='little'))
+        # set FUSE_SECURITY_MODE to 1, so we can enter the try_load_from_rcm function
+        uc.mem_write(0x7000F9A0, bytes([1]))
     
     globs.uc = uc
     print(f"--------------------------- cpsr in the beginning is {hex(uc.reg_read(UC_ARM_REG_CPSR))} ---------------------------")
