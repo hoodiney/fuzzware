@@ -200,8 +200,11 @@ def configure_unicorn(args):
     if args.dump_state_filename is not None:
         if arch == "armv4t":
             snapshot_extend.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
-        else:
+        elif arch == "cortex-m":
             snapshot.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
+        else:
+            print("Architecture is not currently supported for state snapshotting")
+            exit(0)
         if args.dump_mmio_states:
             if args.bb_trace_file is None:
                 args.bb_trace_file = "/dev/null"

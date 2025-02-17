@@ -33,9 +33,12 @@ The initial stack pointer and binary entry point need to be specified correctly.
 ```
 if args.dump_state_filename is not None:
     if arch == "armv4t":
-        snapshot_extend.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
-    else:
+            snapshot_extend.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
+    elif arch == "cortex-m":
         snapshot.init_state_snapshotting(uc, args.dump_state_filename, args.dump_mmio_states, mmio_ranges, args.dumped_mmio_contexts, args.dumped_mmio_name_prefix)
+    else:
+        print("Architecture is not currently supported for state snapshotting")
+        exit(0)
     if args.dump_mmio_states:
         if args.bb_trace_file is None:
             args.bb_trace_file = "/dev/null"
@@ -161,10 +164,29 @@ The `liveness_plugin` is for tracking the liveness of the interesting variables 
 if cfg is not None:
     if cfg['arch'] == 'armv4t':
         project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
-    else:
+    elif cfg['arch'] == 'cortex-m':        
         project, initial_state, base_snapshot = BaseStateSnapshot.from_state_file(statefile, cfg)
+    else:
+        print("Architecture not supported in analyze_mmio.py!")
+        exit(0)
+else:
+    project, initial_state, base_snapshot = BaseStateSnapshotExtend.from_state_file(statefile, cfg)
 ```
 During the MMIO modeling, Angr needs to load the correct base snapshot to start the analysis. The snapshot needs to be parsed from the recorded state files with correct architecture.
+
+```
+if cfg is not None:
+    if cfg['arch'] == 'armv4t':
+        initial_state.register_plugin('liveness', LivenessExtendPlugin(base_snapshot))
+    elif cfg['arch'] == 'cortex-m':        
+        initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+    else:
+        print("Architecture not supported in analyze_mmio.py!")
+        exit(0)
+else:
+    initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+```
+The liveness plugin is architecture specific and needs to be configured correctly. 
 
 ### modeling/fuzzware_modeling/arch_specific/arm_regs.py
 ```
