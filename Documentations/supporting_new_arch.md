@@ -205,8 +205,7 @@ if(uc_emu_start(uc, pc | 1, 0, 0, 0)) {
 }
 #endif
 ```
-
-Then, we need to add the configuration in `emulator/harness/fuzzware_harness/native/Makefile`. Lastly, we need to rebuild the emulator using `rebuild_unicorn.sh`. For example:
+By default, we assume the architecture is Cortex-M. Then, we need to add the configuration in `emulator/harness/fuzzware_harness/native/Makefile`. Lastly, we need to rebuild the emulator using `rebuild_unicorn.sh`. For example:
 
 ```
 ./rebuild_unicorn.sh ARMV4T=1
