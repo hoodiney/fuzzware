@@ -21,7 +21,7 @@ int get_instruction_size(uint64_t insn, bool is_thumb) {
 }
 
 #define NUM_DUMPED_REGS 18
-// DUO: Cortex-A Specific Changes
+// Cortex-A Specific Changes
 // static int reg_ids[NUM_DUMPED_REGS] = {
 //     UC_ARM_REG_R0, UC_ARM_REG_R1, UC_ARM_REG_R2, UC_ARM_REG_R3, UC_ARM_REG_R4, UC_ARM_REG_R5, UC_ARM_REG_R6, UC_ARM_REG_R7,
 //     UC_ARM_REG_R8, UC_ARM_REG_R9, UC_ARM_REG_R10, UC_ARM_REG_R11, UC_ARM_REG_R12, UC_ARM_REG_LR, UC_ARM_REG_PC, UC_ARM_REG_XPSR,
@@ -32,7 +32,7 @@ static int reg_ids[NUM_DUMPED_REGS] = {
     UC_ARM_REG_R8, UC_ARM_REG_R9, UC_ARM_REG_R10, UC_ARM_REG_R11, UC_ARM_REG_R12, UC_ARM_REG_LR, UC_ARM_REG_PC, UC_ARM_REG_CPSR,
     UC_ARM_REG_SP, UC_ARM_REG_OTHER_SP
 };
-// DUO: Cortex-A Specific Changes
+// Cortex-A Specific Changes
 // static char *reg_names[NUM_DUMPED_REGS] = {
 //     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "lr", "pc", "xpsr", "sp", "other_sp"
 // };

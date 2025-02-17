@@ -23,7 +23,7 @@ def return_reg(state):
 def translate_reg_name_to_vex_internal_name(name):
     name = name.lower()
 
-    # DUO: Cortex-A Specific Changes
+    # Cortex-A Specific Changes
     if name == 'cpsr':
         name = 'cc_dep1'
 

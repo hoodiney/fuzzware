@@ -227,20 +227,20 @@ def add_special_initstate_reg_vals_extend(initial_state, regs):
     # In state restoration, restore condition flags. Execution may rely on condition flags set before.
     # cpsr_value = regs['cc_dep1']
 
-    # 解析并设置 N, Z, C, V 标志
+    # parse and setup N, Z, C, V
     # initial_state.regs.flags = cpsr_value & 0xF0000000
 
-    # 设置 Q flag
+    # setup Q flag
     # A 32-bit value which is used to compute the APSR.Q (sticky
     #      saturation) flag, when necessary.  If the value stored here
     #      is zero, APSR.Q is currently zero.  If it is any other value,
     #      APSR.Q is currently one.
     # initial_state.regs.qflag32 = (cpsr_value >> 27) & 1
 
-    # 设置 ITSTATE
+    # setup ITSTATE
     # initial_state.regs.itstate = (cpsr_value >> 25) & 0x3F
 
-    # 设置 GE flags
+    # setup GE flags
     #  32-bit values to represent APSR.GE0 .. GE3.  Same
     #      zero-vs-nonzero scheme as for QFLAG32.
     # initial_state.regs.geflag0 = (cpsr_value >> 16) & 1
