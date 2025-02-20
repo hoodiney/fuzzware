@@ -1,3 +1,4 @@
+demo: tegra
 arch: armv4t
 boot:
   avoid:

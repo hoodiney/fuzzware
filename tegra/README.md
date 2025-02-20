@@ -11,10 +11,16 @@ To use the demo, the user needs to run the following command to correctly build 
 ./rebuild_unicorn ARMV4T=1 TEGRA=1
 ```
 
-The command to run this demo is as follows. There is an additional parameter `--tegra` to specify some tegra specific support.
+The command to run this demo is as follows. In order to activate the tegra related support, we need to add a `demo` field in `config.yml` with value `tegra`. For example:
+```
+demo: tegra
+arch: armv4t
+memory_map:
+...
+```
 
 ```
-fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -d -v --tegra --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
+fuzzware emu -c /home/user/fuzzware_repo/tegra/tegra_crash_input_example/config.yml -d -v --prefix-input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/prefix_input /home/user/fuzzware_repo/tegra/tegra_crash_input_example/crash_input
 ```
 
 **usbd::handle_ep0_control_transfer** 

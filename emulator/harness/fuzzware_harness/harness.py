@@ -331,7 +331,9 @@ def configure_unicorn(args):
     else:
         uc.gdb = None
 
-    return uc, arch
+    demo_option = config.get("demo")
+
+    return uc, arch, demo_option
 
 def sym_or_addr(x):
     try:
@@ -343,8 +345,6 @@ def populate_parser(parser):
     parser.add_argument('input_file', type=str, help="Path to the file containing the mutated input to load")
     parser.add_argument('--prefix-input', dest='prefix_input_path', type=str, help="(Optional) Path to the file containing a constant input to load")
     parser.add_argument('-c', '--config', default="config.yml", help="The emulator configuration to use. Defaults to 'config.yml'")
-    # tegra demo
-    parser.add_argument('--tegra', default=False, action="store_true", help="If we are running the tegra demo")
     
     # Verbosity switches
     parser.add_argument('-d', '--debug', default=False, action="store_true", help="Enables debug mode (required for -t and -M) (SLOW!)")
@@ -403,11 +403,11 @@ def main():
     if any(debug_flags):
         args.debug = True
 
-    uc, arch = configure_unicorn(args)
+    uc, arch, demo_option = configure_unicorn(args)
     
     # Add the hook for debugging, tracing every pc executed
 
-    if arch == 'armv4t' and args.tegra:
+    if arch == 'armv4t' and demo_option == 'tegra':
         tegra_func_names = {}
         with open("./tegra_function_dump.csv") as file:
             lines = file.readlines()
@@ -432,7 +432,7 @@ def main():
 
 
         uc.hook_add(UC_HOOK_CODE, hook_code)
-        # TODO: 在config.yml里添加初始化某些内存内容的逻辑, 可以设置一个初始化函数来执行
+        # TODO: add some fields to setup the memories via config.yml
         uc.mem_write(0x40002990, 0x40005000.to_bytes(4, byteorder='little'))
         uc.mem_write(0x40002994, 0x40009000.to_bytes(4, byteorder='little'))
         # set g_rcm_op_mode to RCM_OP_MODE_UNK
