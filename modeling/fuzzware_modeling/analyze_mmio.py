@@ -128,7 +128,7 @@ def setup_analysis(statefile, cfg=None):
             print("Architecture not supported in analyze_mmio.py!")
             exit(0)
     else:
-        initial_state.register_plugin('liveness', LivenessPlugin(base_snapshot))
+        initial_state.register_plugin('liveness', LivenessExtendPlugin(base_snapshot))
 
     return project, initial_state, base_snapshot
 
